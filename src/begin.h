@@ -5,19 +5,26 @@
 #include <stdint.h>
 #include <math.h>
 
+#define GAME_NAME "Borderless"
+
 #define TILEW 8
 #define TILEH 8
 
 #define FPS 30
+#define FDT (1000 / FPS)
 
 #define ERROR(MSG) fprintf(stderr, "[ERROR] " __FILE__ ":%i:0: " MSG "\n", __LINE__)
 #define VERROR(MSG, ...) fprintf(stderr, "[ERROR] " __FILE__ ":%i:0: " MSG "\n", __LINE__, __VA_ARGS__)
 
-#define MIN(X, Y) ((X) < (Y))? (X) : (Y)
-#define MAX(X, Y) ((X) > (Y))? (X) : (Y)
+#define MIN(X, Y) (((X) < (Y))? (X) :  (Y))
+#define MAX(X, Y) (((X) > (Y))? (X) :  (Y))
+#define ABS(X)    (((X) > 0)  ? (X) : -(X))
 
 #define MAXV(X) ((1 << (sizeof(X) - 1)) + ((1 << (sizeof(X) - 1)) - 1))
 
+#define ENEMY1_CHILL 2
+
+#define BACKGROUND_COLOR 0xFF999999
 
 enum Palettes{
     PALETTE1 = 0,
@@ -38,6 +45,7 @@ enum Tiles{
     TILE_FIRST_ENTITY_ID = 16,
     TILE_PLAYER = TILE_FIRST_ENTITY_ID,
     TILE_ENEMY1,
+    TILE_ENEMY1_ALERT,
     TILE_LAST_ENTITY_ID = 31,
 
     // for counting purposes
@@ -51,6 +59,58 @@ enum Entities{
 
     // for counting purposes
     ENTITY_COUNT,
+};
+
+enum EntityStates{
+    STATE_DEAD    = 0,
+    STATE_ALIVE   = 1 << 0,
+    STATE_DAZZLED = 1 << 1,
+    STATE_ALERTED = 1 << 2
+};
+
+enum ORIENTATIONS{
+    ORIENT_UP = 0,
+    ORIENT_RIGHT,
+    ORIENT_DOWN,
+    ORIENT_LEFT,
+
+    // for counting purposes
+    ORIENT_COUNT
+};
+
+enum Cmd{
+    CMD_NONE = 0,
+    
+    CMD_QUIT,
+    CMD_UPDATE,
+    CMD_DEBUG,
+    CMD_RESTART,
+
+    CMD_ENTER,
+    CMD_PAUSE,
+    CMD_MOUSECLICK,
+
+    CMD_UP,
+    CMD_RIGHT,
+    CMD_LEFT,
+    CMD_DOWN,
+
+    // for external user usage
+    CMD_SPECIAL_SIGNAL,
+
+    // indicates last command in command queue
+    CMD_FINNISHED,
+
+    // for counting purposes
+    CMD_COUNT
+};
+
+enum Buttons{
+    BUTTON_NONE = 0,
+    BUTTON_TEST,
+
+    // for counting purposes
+    BUTTON_COUNT
 };
 
 typedef struct Game Game;
@@ -78,8 +138,12 @@ typedef struct Entity
 {
     int x;
     int y;
+    int orientation;
     int state;
-    int(*update)(Game*, Entity*);
+    int chill;
+    int targetx;
+    int targety;
+    int(*update)(Entity*);
 } Entity;
 
 typedef struct Map{
@@ -88,19 +152,26 @@ typedef struct Map{
     unsigned char*  map;
 } Map;
 
+typedef struct Node {int x; int y;} Node;
+
 typedef struct Task Task;
 
 typedef struct Task
 {
     int* data;
-    int(*update)(Game* game, Task* task);
+    int(*update)(Task* task);
 } Task;
+
+typedef struct Button{
+    int   buttonid;
+    Rect rect;
+} Button;
 
 typedef struct Ray
 {
     float x;
     float y;
-    float r2;
+    float r;
     float cos;
     float sin;
 } Ray;
@@ -113,6 +184,7 @@ typedef struct Game{
 
     Rect            camera;
     Rect            mouse;
+    //Pixel           mouse_canvas[TILEW * TILEH];
 
     Map             map;
 
@@ -126,67 +198,10 @@ typedef struct Game{
 
     void*           user_data;
 
-    int (*update)(Game*);
-    int (*user_draw)(Game*);
-    int (*user_update)(Game*);
+    int (*update)(int cmd);
 
     int debug;
 } Game;
 
-
-
-float Q_rsqrt(float number) {
-    const float x2 = number * 0.5;
-    const float threehalfs = 1.5;
-
-    const int i = 0x5f3759df - ((*(int*) &number) >> 1);
-
-    float f = *(float*) &i;
-
-    f = f * (threehalfs - (x2 * f * f));
-    f = f * (threehalfs - (x2 * f * f));
-    f = f * (threehalfs - (x2 * f * f));
-    f = f * (threehalfs - (x2 * f * f));
-    f = f * (threehalfs - (x2 * f * f));
-
-    return f;
-}
-
-static inline int in_bounds(const Rect rect, int x, int y){
-    return (x > rect.x && x < rect.x + rect.w) && (y > rect.y && y < rect.y + rect.h);
-}
-
-static inline int in_sbounds(const Surface surface, int x, int y){
-    return (x > -1 && x < surface.w) && (y > -1 && y < surface.h);
-}
-
-static inline int in_mbounds(const Map map, int x, int y){
-    return (x > -1 && x < map.w) && (y > -1 && y < map.h);
-}
-
-int collide_rect(const Rect rect1, const Rect rect2){
-    if(in_bounds(rect1, rect2.x, rect2.y)) return 1;
-    if(in_bounds(rect1, rect2.x + rect2.w, rect2.y)) return 1;
-    if(in_bounds(rect1, rect2.x, rect2.y + rect2.h)) return 1;
-    if(in_bounds(rect1, rect2.x + rect2.w, rect2.y + rect2.h)) return 1;
-    return 0;
-}
-
-static inline int distance2(int x1, int y1, int x2, int y2){
-    return (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
-}
-
-static inline unsigned char get_tile(const Map map, int x, int y){
-    return (x < 0 || y < 0 || x >= map.w || y >= map.h)? '\0' : map.map[y * map.w + x];
-}
-
-static const uint32_t palettes[PALETTE_COUNT][32] = {
-	{0x00000000, 0xff050305, 0xff41102e, 0xff35174a, 0xff3a1f6f, 0xff430e27, 0xff10106a, 0xff524c67, 0xff2e2e8a, 0xff0f6c40, 0xff3f5188, 0xff287377, 0xff8a2e36, 0xff955e50, 0xff683e98, 0xff7504d2, 0xff735221, 0xff89931a, 0xff484861, 0xff7c698c, 0xff629627, 0xff828282, 0xff0875e2, 0xff537194, 0xff2cb41d, 0xff499263, 0xff1b363b, 0xff077283, 0xff12edbe, 0xff56e6eb, 0xffa1fcfc, 0xffd6ffff},
-    {0x00000000, 0xfff5d6e8, 0xff3c2845, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0xffcc1e24, 0xff0909d7, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000},
-};
-
-static const char spalette[] = {
-    ' ', '#', '=', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', 'p', '@', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\''
-};
 
 #endif // =====================  END OF FILE BEGIN_HEADER ===========================
