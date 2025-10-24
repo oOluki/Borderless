@@ -3,7 +3,9 @@
 
 #include "begin.h"
 
-#define MAXQ (sizeof(map1) / sizeof(map1[0]))
+#define MAXBFSQUEUESIZE (sizeof(map1) / sizeof(map1[0]))
+
+#define MAXMAPSIZE (sizeof(map1) / sizeof(map1[0]))
 
 static const int map1w = 32;
 static const int map1h = 32;
@@ -42,55 +44,104 @@ static const unsigned char map1[] = {
 	01, 01, 01, 01, 01, 01, 01, 01, 01, 01, 01, 01, 01, 01, 01, 01, 01, 01, 01, 01, 01, 01, 01, 01, 01, 01, 01, 01, 01, 01, 01, 01,
 };
 
-static unsigned int  player_dist[MAXQ];
-static unsigned char mapbuff[MAXQ];
+static int  bfs_result[MAXBFSQUEUESIZE];
+static Node bfs_queue[MAXBFSQUEUESIZE];
+static uint32_t mapbuff[MAXMAPSIZE];
 
-int bfs_from_player(const Map map, Node player){
+
+// performs bfs from (x, y) storing the result in bfs_result
+// \param callback 
+// \returns the index of the last node in the bfs_queue
+int bfs_from(const Map map, int x, int y, int range, void(*callback)(int node)){
 	
-	static Node queue[MAXQ];
+    const Node origin = (Node){.parent = -1, .x = x, .y = y};
 
-    int qh=0, qt=0;
+    const int j0     = MAX(0, x);
+    const int xrange = MIN(x + range, map.w);
+    const int yrange = MIN(y + range, map.h);
 
     // init distances
-    for (int y=0; y<map.h; y+=1)
-        for (int x=0; x<map.w; x+=1)
-            player_dist[y * map.w + x] = -1;
+    for (int i = MAX(0, y); i < yrange; i+=1)
+        for (int j = j0; j < xrange; j+=1)
+            bfs_result[i * map.w + j] = -1;
+    
+    int qh=0, qt=0;
 
-    queue[qt++] = player;
-    player_dist[player.y * map.w + player.x] = 0;
+    bfs_queue[qt++] = origin;
+    bfs_result[origin.y * map.w + origin.x] = 0;
 
     int dirs[4][2] = {{1,0},{-1,0},{0,1},{0,-1}};
 
-    while (qh < qt) {
-        Node cur = queue[qh++];
+    Node cur = origin;
+
+    while (qh < qt && bfs_result[cur.y * map.w + cur.x] < range) {
+        
         for (int i=0; i<4; i++) {
             int nx = cur.x + dirs[i][0];
             int ny = cur.y + dirs[i][1];
             if (nx>=0 && nx<map.w && ny>=0 && ny<map.h &&
-                map.map[ny * map.w + nx]==0 && player_dist[ny * map.w + nx]==-1) {
-                player_dist[ny * map.w + nx] = player_dist[cur.y * map.w + cur.x] + 1;
-                queue[qt++] = (Node){nx, ny};
+                map.map[ny * map.w + nx]==0 && bfs_result[ny * map.w + nx]==-1) {
+                bfs_result[ny * map.w + nx] = bfs_result[cur.y * map.w + cur.x] + 1;
+                bfs_queue[qt++] = (Node){.parent = qh, .x = nx, .y = ny};
             }
         }
+        cur = bfs_queue[++qh];
     }
-    return 0;
+    return qh;
 }
 
-Node move_towards_player(int mapw, int maph, Node start) {
-    int bestd = player_dist[start.y * mapw + start.x];
-    Node best = start;
+// puts the path from (originx, originy) to (targetx, targety) in output
+// \returns thse size of the path or -1 if no path is found
+int find_path(int* output, int range, const Map map, int originx, int originy, int targetx, int targety){
+
+    //printf("find path from (%i, %i) -> (%i, %i)\n", originx, originy, targetx, targety);
+
+    if(originx == targetx && originy == targety) return 0;
+
+    const Node origin = (Node){.parent = -1, .x = originx, .y = originy};
+
+    const int j0     = MAX(0, originx);
+    const int xrange = MIN(originx + range, map.w);
+    const int yrange = MIN(originy + range, map.h);
+
+    // init distances
+    for (int i = MAX(0, originy); i < yrange; i+=1)
+        for (int j = j0; j < xrange; j+=1)
+            bfs_result[i * map.w + j] = -1;
+    
+    int qh=0, qt=0;
+
+    bfs_queue[qt++] = origin;
+    bfs_result[origin.y * map.w + origin.x] = 0;
 
     int dirs[4][2] = {{1,0},{-1,0},{0,1},{0,-1}};
-    for (int i=0; i<4; i++) {
-        int nx = start.x + dirs[i][0];
-        int ny = start.y + dirs[i][1];
-        if (nx>=0 && nx<mapw && ny>=0 && ny<maph &&
-            player_dist[ny * mapw + nx] != -1 && player_dist[ny * mapw + nx] < bestd) {
-            bestd = player_dist[ny * mapw + nx];
-            best = (Node){nx, ny};
+
+    Node cur = origin;
+
+    while (qh < qt && bfs_result[cur.y * map.w + cur.x] < range) {
+        
+        for (int i=0; i<4; i++) {
+            int nx = cur.x + dirs[i][0];
+            int ny = cur.y + dirs[i][1];
+            if(nx == targetx && ny == targety){
+                int path_size = 0;
+                while(cur.parent >= 0){
+                    output[path_size++] = cur.y * map.w + cur.x;
+                    cur = bfs_queue[cur.parent];
+                }
+                output[path_size++] = targety * map.w + targetx;
+                return path_size;
+            }
+            if (nx>=0 && nx<map.w && ny>=0 && ny<map.h &&
+                map.map[ny * map.w + nx]==0 && bfs_result[ny * map.w + nx]==-1) {
+                bfs_result[ny * map.w + nx] = bfs_result[cur.y * map.w + cur.x] + 1;
+                bfs_queue[qt++] = (Node){.parent = qh, .x = nx, .y = ny};
+            }
         }
+        cur = bfs_queue[++qh];
     }
-    return best;
+    //printf("no path found\n");
+    return -1;
 }
 
 #endif // =====================  END OF FILE MAPS_HEADER ===========================

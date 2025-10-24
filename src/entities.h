@@ -46,7 +46,8 @@ static inline int orientation_direction(int orientation, int* dx, int* dy){
     }
 }
 
-int is_target_visible_from(const Map map, int targetx, int targety, int fromx, int fromy){
+// pass max_distance = -1.0f to check whether target is visible at all from origin point
+int is_target_visible_from(const Map map, int targetx, int targety, int fromx, int fromy, float max_distance){
 
     const Ray ray = prepare_ray(
         fromx,
@@ -57,15 +58,57 @@ int is_target_visible_from(const Map map, int targetx, int targety, int fromx, i
     Ray rayh = ray;
     Ray rayv = ray;
 
-    const float d = sqrtf((float) distance2(fromx, fromy, targetx, targety));
+    if(max_distance < 0.0f) max_distance = (float) sqrt((float) distance2(targetx, targety, fromx, fromy));
 
-    for(int hcollision = 0; !hcollision && rayh.r < d; hcollision = ray_steph(map, &rayh));
+    for(int hcollision = 0; !hcollision && rayh.r < max_distance; hcollision = ray_steph(map, &rayh));
 
-    for(int vcollision = 0; !vcollision && rayv.r < d; vcollision = ray_stepv(map, &rayv));
+    for(int vcollision = 0; !vcollision && rayv.r < max_distance; vcollision = ray_stepv(map, &rayv));
 
     const float r = MIN(rayh.r, rayv.r);
 
-    return !(r < d);
+    return !(r < max_distance);
+}
+
+void move_towards_visible(Entity* self, int targetx, int targety){
+
+    if(ABS(self->x - targetx) > ABS(self->y - targety)){ // test dx movement first
+        if(self->x != targetx){
+            const int dx = (self->x < targetx)? TILEW : -TILEW;
+            if(!get_tile(game.map, (self->x + dx) / TILEW, self->y / TILEH)){
+                if(is_target_visible_from(game.map, targetx, targety, self->x + dx, self->y, -1.0f)){
+                    self->x += dx;
+                    return;
+                }
+            }
+        }
+        if(self->y != targety){
+            const int dy = (self->y < targety)? TILEH : -TILEH;
+            if(!get_tile(game.map, self->x / TILEW, (self->y + dy) / TILEH)){
+                if(is_target_visible_from(game.map, targetx, targety, self->x, self->y + dy, -1.0f)){
+                    self->y += dy;
+                }
+            } 
+        }
+    }
+    else{ // test dy movement first
+        if(self->y != targety){
+            const int dy = (self->y < targety)? TILEH : -TILEH;
+            if(!get_tile(game.map, self->x / TILEW, (self->y + dy) / TILEH)){
+                if(is_target_visible_from(game.map, targetx, targety, self->x, self->y + dy, -1.0f)){
+                    self->y += dy;
+                    return;
+                }
+            } 
+        }
+        if(self->x != targetx){
+            const int dx = (self->x < targetx)? TILEW : -TILEW;
+            if(!get_tile(game.map, (self->x + dx) / TILEW, self->y / TILEH)){
+                if(is_target_visible_from(game.map, targetx, targety, self->x + dx, self->y, -1.0f)){
+                    self->x += dx;
+                }
+            }
+        }
+    }
 }
 
 int update_enemy1(Entity* self){
@@ -80,44 +123,25 @@ int update_enemy1(Entity* self){
     if(self->state & STATE_ALERTED){
         if((ABS(self->x - game.player.x) <= TILEW) && (ABS(self->y - game.player.y) <= TILEH)){
             game.player.state = STATE_DEAD;
-        } else if(is_target_visible_from(game.map, game.player.x, game.player.y, self->x, self->y)){
-            const Node next = move_towards_player(game.map.w, game.map.h, (Node){.x = self->x / TILEW, .y = self->y / TILEH});
-            int update = 1;
-            for(int i = 0; i < game.entity_count; i+=1){
-                const Entity e = game.entities[i];
-                if(!(e.state & STATE_ALIVE) || (e.state & STATE_ALERTED)){
-                    continue;
-                }
-                if(collide_rect((Rect){.x = next.x * TILEW, .y = next.y * TILEH, TILEW, TILEH},
-                (Rect){.x = e.x * TILEW   , .y = e.y * TILEH   , TILEW, TILEH})){
-                    update = 0;
-                    break;
-                }
-            }
-            if(update){
-                self->x = next.x * TILEW;
-                self->y = next.y * TILEH;
-            }
-        } else{
-            self->state &= ~STATE_ALERTED;
         }
-        for(int i = 0; i < game.entity_count; i+=1){
-            Entity* const e = game.entities + i;
-            if(!(e->state & STATE_ALIVE) || (e->state & STATE_ALERTED)){
-                continue;
+        else if(is_target_visible_from(game.map, game.player.x, game.player.y, self->x, self->y, -1.0f)){
+            move_towards_visible(self, game.player.x, game.player.y);
+            self->targetx = game.player.x;
+            self->targety = game.player.y;
+        }
+        else{
+            if(self->x == self->targetx && self->y == self->targety){
+                self->state &= ~STATE_ALERTED;
             }
-            if(facing_entity(self->x, self->y, self->orientation, e->x, e->y)){
-                if(is_target_visible_from(game.map, e->x, e->y, self->x, self->y)){
-                    if(distance2(self->x, self->y, e->x, e->y) < 100 * (TILEW * TILEW + TILEH * TILEH))
-                        e->state |= STATE_ALERTED;
-                }
+            else{
+                move_towards_visible(self, self->targetx, self->targety);
             }
         }
         copySprite(
             game.draw_canvas,
             self->x - game.camera.x,
             self->y - game.camera.y,
-            SPRITE_ALERT,
+            (self->state & STATE_ALERTED)? SPRITE_ALERT : self->orientation + SPRITE_ORIENTATION,
             enemy1_palette
         );
         return 0;
@@ -143,7 +167,7 @@ int update_enemy1(Entity* self){
         return 0;
     }
 
-    const int can_see_player = is_target_visible_from(game.map, game.player.x, game.player.y, self->x, self->y);
+    const int can_see_player = is_target_visible_from(game.map, game.player.x, game.player.y, self->x, self->y, -1.0f);
 
     copySprite(
         game.draw_canvas,
@@ -153,17 +177,17 @@ int update_enemy1(Entity* self){
         enemy1_palette
     );
 
-    if(!can_see_player){
-        if(--self->chill < 0){
-            self->chill = ENEMY1_CHILL;
-            self->orientation = (self->orientation + 1) % ORIENT_COUNT;
-        }
-    } else{
+    if(can_see_player){
         self->targetx = game.player.x;
         self->targety = game.player.y;
         self->state |= STATE_ALERTED;
         if((ABS(self->x - game.player.x) <= TILEW) && (ABS(self->y - game.player.y) <= TILEH)){
             game.player.state = STATE_DEAD;
+        }
+    } else{
+        if(--self->chill < 0){
+            self->chill = ENEMY1_CHILL;
+            self->orientation = (self->orientation + 1) % ORIENT_COUNT;
         }
     }
 

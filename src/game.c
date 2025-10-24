@@ -115,7 +115,43 @@ int level_update(int cmd){
         return 1;
     case CMD_PAUSE: // TODO
         return 0;
-    case CMD_MOUSECLICK: // TODO
+    case CMD_MOUSECLICK:{
+        clear_rect(game.draw_canvas, 0, 0, game.camera.w, game.camera.h, BACKGROUND_COLOR);
+
+        draw_map();
+
+        int path[10];
+
+        printf("player at (%i, %i) to mouse at (%i, %i)\n",
+        game.player.x, game.player.y, game.mouse.x + game.camera.x, game.mouse.y + game.camera.y);
+        const int path_size = find_path(
+            path, ARLEN(path), game.map,
+            game.player.x / TILEW, game.player.y / TILEH,
+            (game.mouse.x + game.camera.x) / TILEW, (game.mouse.y + game.camera.y) / TILEH
+        );
+
+        if(path_size > 0)
+            printf("found path of size %i\n", path_size);
+        else
+            printf("no path found\n");
+
+        for(int i = 0; i < path_size; i+=1){
+            fill_rect(
+                game.draw_canvas,
+                (path[i] % game.map.w) * TILEW - game.camera.x,
+                (path[i] / game.map.w) * TILEH - game.camera.y,
+                TILEW, TILEH,
+                0xAA0000BB
+            );
+        }
+
+        fill_rect(
+            game.draw_canvas,
+            game.mouse.x - game.mouse.w / 2, game.mouse.y - game.mouse.h / 2,
+            game.mouse.w, game.mouse.h,
+            0xAA11AADD
+        );
+    }
         return 0;
     case CMD_UP:{
         int dx = 0;
@@ -155,8 +191,6 @@ int level_update(int cmd){
 
     draw_map();
 
-    bfs_from_player(game.map, (Node){game.player.x / TILEW, game.player.y / TILEH});
-
     copySprite(
         game.draw_canvas,
         game.player.x - game.camera.x, game.player.y - game.camera.y,
@@ -181,6 +215,13 @@ int level_update(int cmd){
         }
         i+=1;
     }
+
+    fill_rect(
+        game.draw_canvas,
+        game.mouse.x - game.mouse.w / 2, game.mouse.y - game.mouse.h / 2,
+        game.mouse.w, game.mouse.h,
+        0xAA11AADD
+    );
 
     game.debug = 0;
 

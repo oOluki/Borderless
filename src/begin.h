@@ -16,9 +16,17 @@
 #define ERROR(MSG) fprintf(stderr, "[ERROR] " __FILE__ ":%i:0: " MSG "\n", __LINE__)
 #define VERROR(MSG, ...) fprintf(stderr, "[ERROR] " __FILE__ ":%i:0: " MSG "\n", __LINE__, __VA_ARGS__)
 
+#define ASSERT(CONDITION, RETURN_VALUE) if(!(CONDITION)){\
+    VERROR("ASSERTION '" #CONDITION "' FAILED");\
+    return RETURN_VALUE;\
+    }
+
 #define MIN(X, Y) (((X) < (Y))? (X) :  (Y))
 #define MAX(X, Y) (((X) > (Y))? (X) :  (Y))
 #define ABS(X)    (((X) > 0)  ? (X) : -(X))
+
+// array length
+#define ARLEN(ARRAY) (sizeof(ARRAY) / sizeof(ARRAY[0]))
 
 #define MAXV(X) ((1 << (sizeof(X) - 1)) + ((1 << (sizeof(X) - 1)) - 1))
 
@@ -147,12 +155,16 @@ typedef struct Entity
 } Entity;
 
 typedef struct Map{
-    int             w;
-    int             h;
-    unsigned char*  map;
+    int       w;
+    int       h;
+    uint32_t* map;
 } Map;
 
-typedef struct Node {int x; int y;} Node;
+typedef struct Node {
+    int parent;
+    int x;
+    int y;
+} Node;
 
 typedef struct Task Task;
 
