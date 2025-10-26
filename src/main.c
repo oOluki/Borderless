@@ -4,10 +4,6 @@
 
 int main(int argc, char** argv){
 
-    if(general_check()){
-        return 1;
-    }
-
     static Pixel draw_canvas_pixels[800 * 600];
 
     if(game_init(draw_canvas_pixels, 800, 600, 800)) return 1;

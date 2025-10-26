@@ -10,8 +10,6 @@ int level_update(int cmd);
 
 int main_screen_update(int cmd);
 
-int load_entity(int entity_id, int map_x, int map_y);
-
 int load_map(const unsigned char* src, int w, int h);
 
 float Q_rsqrt(float number) {
@@ -60,8 +58,8 @@ static inline int distance2(int x1, int y1, int x2, int y2){
     return (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
 }
 
-static inline unsigned char get_tile(const Map map, int x, int y){
-    return (x < 0 || y < 0 || x >= map.w || y >= map.h)? '\0' : (unsigned char) map.map[y * map.w + x];
+static inline Tile get_tile(const Map map, int x, int y){
+    return (x < 0 || y < 0 || x >= map.w || y >= map.h)? 0 : map.map[y * map.w + x];
 }
 
 

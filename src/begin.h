@@ -32,7 +32,25 @@
 
 #define ENEMY1_CHILL 2
 
+#define Color uint32_t
+
 #define BACKGROUND_COLOR 0xFF999999
+
+// the bit mask where a tile's type is stored in a tile
+#define TILE_TYPE_MASK 7
+// the bit depth where a tile's type is stored in a tile
+#define TILE_TYPE_BITDEPTH 0
+
+// the bit mask where a tile's data is stored
+#define TILE_DATA_MASK (0xFF & ~TILE_TYPE_MASK)
+// the bit depth where a tile's data is stored in a tile
+#define TILE_DATA_BITDEPTH 3
+
+#define TILE_TYPE(TILE) (((TILE) & TILE_TYPE_MASK) >> TILE_TYPE_BITDEPTH)
+
+#define TILE_DATA(TILE) (((TILE) & TILE_DATA_MASK) >> TILE_DATA_BITDEPTH)
+
+#define MK_TILE(TILE_TYPE, TILE_DATA) ((Tile) ((((TILE_TYPE) << TILE_TYPE_BITDEPTH) & TILE_TYPE_MASK) | (((TILE_DATA) << TILE_DATA_BITDEPTH) & TILE_DATA_MASK)))
 
 enum Palettes{
     PALETTE1 = 0,
@@ -48,16 +66,37 @@ enum Tiles{
     TILE_WALL,
     TILE_SWALL,
 
-    TILE_LAST_TILE_ID = 15,
+    TILE_LAST_TILE = 15,
+    TILE_PLAYER_FACE_UP,
+    TILE_PLAYER_FACE_RIGHT,
+    TILE_PLAYER_FACE_DOWN,
+    TILE_PLAYER_FACE_LEFT,
 
-    TILE_FIRST_ENTITY_ID = 16,
-    TILE_PLAYER = TILE_FIRST_ENTITY_ID,
-    TILE_ENEMY1,
-    TILE_ENEMY1_ALERT,
-    TILE_LAST_ENTITY_ID = 31,
+    TILE_ENEMY1_FACE_UP,
+    TILE_ENEMY1_FACE_RIGHT,
+    TILE_ENEMY1_FACE_DOWN,
+    TILE_ENEMY1_FACE_LEFT,
 
     // for counting purposes
     TILE_COUNT = 32
+};
+
+// an id number placed in the first 3 bits of a tile to id its type on the fly
+// 
+enum TileTypes{
+    // empty tile
+    TILETYPE_NONE = 0,
+    // tile is an simple tile, and this tile in the Tiles enum is given by the next 5 bits of the tile
+    TILETYPE_TILE,
+    // tile is the player
+    TILETYPE_PLAYER,
+    // tile is an entity, and this entity's position in the entities array is given by the next 5 bits of the tile
+    TILETYPE_ENTITY,
+
+    // for counting purposes
+    TILETYPE_COUNT,
+
+    TILETYPE_ERROR
 };
 
 enum Entities{
@@ -103,6 +142,8 @@ enum Cmd{
     CMD_LEFT,
     CMD_DOWN,
 
+    CMD_CHEAT_REVIVE,
+
     // for external user usage
     CMD_SPECIAL_SIGNAL,
 
@@ -123,7 +164,13 @@ enum Buttons{
 
 typedef struct Game Game;
 
-typedef uint32_t Pixel;
+typedef Color Pixel;
+
+// in game tile
+typedef uint32_t Tile;
+
+// tile used for loading maps
+typedef unsigned char SrcTile;
 
 typedef struct Rect{
     int x;
@@ -144,6 +191,7 @@ typedef struct Entity Entity;
 
 typedef struct Entity
 {
+    int type;
     int x;
     int y;
     int orientation;
@@ -151,13 +199,13 @@ typedef struct Entity
     int chill;
     int targetx;
     int targety;
-    int(*update)(Entity*);
+    int sprite;
 } Entity;
 
 typedef struct Map{
-    int       w;
-    int       h;
-    uint32_t* map;
+    int     w;
+    int     h;
+    Tile*   map;
 } Map;
 
 typedef struct Node {
@@ -170,8 +218,8 @@ typedef struct Task Task;
 
 typedef struct Task
 {
-    int* data;
-    int(*update)(Task* task);
+    int taskid;
+    int data[10];
 } Task;
 
 typedef struct Button{
@@ -202,11 +250,11 @@ typedef struct Game{
 
     Entity          player;
 
-    Entity          entities[100];
-    int             entity_count;
+    Entity          entities[64];
+    uint8_t         entity_count;
 
-    Task            tasks[100];
-    int             task_count;
+    Task            tasks[64];
+    uint8_t         task_count;
 
     void*           user_data;
 

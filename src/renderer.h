@@ -39,7 +39,7 @@ static inline uint32_t blend_colors(const uint32_t ct, const uint32_t cb){
 }
 
 
-void clear_rect(Surface surface, int _x, int _y, int w, int h, uint32_t color){
+void clear_rect(Surface surface, int _x, int _y, int w, int h, Color color){
     const int xrange = (surface.w < _x + w)? surface.w - 1 : _x + w;
     const int yrange = (surface.h < _y + h)? surface.h - 1 : _y + h;
 
@@ -52,7 +52,7 @@ void clear_rect(Surface surface, int _x, int _y, int w, int h, uint32_t color){
 
 #define clearrect(surface, rect, color) clear_rect((surface), (rect).x, (rect).y, (rect).w, (rect).h, color)
 
-void fill_rect(Surface surface, int _x, int _y, int w, int h, uint32_t color){
+void fill_rect(Surface surface, int _x, int _y, int w, int h, Color color){
 
     const int xrange = (surface.w < _x + w)? surface.w - 1 : _x + w;
     const int yrange = (surface.h < _y + h)? surface.h - 1 : _y + h;
@@ -66,7 +66,7 @@ void fill_rect(Surface surface, int _x, int _y, int w, int h, uint32_t color){
 
 #define fillrect(surface, rect, color) fill_rect((surface), (rect).x, (rect).y, (rect).w, (rect).h, color)
 
-void draw_rect(Surface surface, int _x, int _y, int w, int h, uint32_t color){
+void draw_rect(Surface surface, int _x, int _y, int w, int h, Color color){
 
     const int xrange = (surface.w < _x + w)? surface.w - 1 : _x + w;
     const int yrange = (surface.h < _y + h)? surface.h - 1 : _y + h;
@@ -86,7 +86,9 @@ void draw_rect(Surface surface, int _x, int _y, int w, int h, uint32_t color){
 
 #define drawrect(surface, rect, color) draw_rect((surface), (rect).x, (rect).y, (rect).w, (rect).h, color)
 
-void copy_sprite(Surface surface, int x, int y, int _sprite, const uint32_t* palette){
+int copy_sprite(Surface surface, int x, int y, int _sprite, const Color* palette){
+
+    if(!palette) return 1;
 
     const unsigned char* const sprite =
         sprite_sheet +
@@ -98,7 +100,7 @@ void copy_sprite(Surface surface, int x, int y, int _sprite, const uint32_t* pal
     int irange = SPRITE_DIM;
     int jrange = SPRITE_DIM;
 
-    if(x >= surface.w || y >= surface.h || x < -SPRITE_DIM || y < -SPRITE_DIM) return;
+    if(x >= surface.w || y >= surface.h || x < -SPRITE_DIM || y < -SPRITE_DIM) return 0;
 
     if(x < 0){
         jrange = SPRITE_DIM + x;
@@ -144,7 +146,8 @@ void copy_sprite(Surface surface, int x, int y, int _sprite, const uint32_t* pal
             );
         }
     }
-
+    
+    return 0;
 }
 
 void render_text(Surface surface, int x, int y, const char* txt, uint32_t color){

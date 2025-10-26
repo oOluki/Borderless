@@ -4,7 +4,7 @@
 #include "game.h"
 #include "maps.h"
 #include "entities.h"
-#include "raycast.h"
+#include "bfs_and_raycast.h"
 #include "renderer.h"
 
 
@@ -17,33 +17,67 @@ static const char* get_button_name(int buttonid){
     }
 }
 
-int load_entity(int entity_id, int map_x, int map_y){
-
-    switch (entity_id)
-    {
-    case ENTITY_PLAYER:
-        game.player = (Entity){.x = map_x * TILEW, .y = map_y * TILEH, .orientation = ORIENT_UP, .state = STATE_ALIVE, .update = NULL};
-        return 0;
-    
-    case ENTITY_ENEMY1:
-        if(game.entity_count + 1 > (sizeof(game.entities) / sizeof(*game.entities))){
-            ERROR("entity overflow");
-            return 1;
-        }
-        game.entities[game.entity_count++] = (Entity){
-            .x           = map_x * TILEW, .y      = map_y * TILEH,
-            .orientation = ORIENT_UP    , .state  = STATE_ALIVE,
-            .chill       = ENEMY1_CHILL , .update = update_enemy1
-        };
-        return 0;
-    
-    default:
-        VERROR("Invalid entity_id %i", entity_id);
+static inline int load_entity(int type, int x, int y, int state, int orientation, int sprite){
+    if(game.entity_count + 1 >= ARLEN(game.entities)){
+        ERROR("could not load entity, entity overflow\n");
         return 1;
     }
-
+    game.entities[game.entity_count++] = (Entity){.type = type, .x = x, .y = y, .state = state, .orientation = orientation, .sprite = sprite};
     return 0;
 }
+
+static Tile load_tile_component(int tile, int map_x, int map_y){
+
+    switch (tile)
+    {
+    case TILE_EMPTY:
+        return MK_TILE(TILETYPE_NONE, TILE_EMPTY);
+    case TILE_WALL:
+        return MK_TILE(TILETYPE_TILE, TILE_WALL);
+    case TILE_SWALL:
+        return MK_TILE(TILETYPE_TILE, TILE_SWALL);
+
+    case TILE_PLAYER_FACE_UP:
+        game.player = (Entity){.type = ENTITY_PLAYER, .x = map_x * TILEW, .y = map_y * TILEH, .orientation = ORIENT_UP   , .sprite = SPRITE_UP   , .state = STATE_ALIVE};
+        return MK_TILE(TILETYPE_PLAYER, 0);
+    case TILE_PLAYER_FACE_RIGHT:
+        game.player = (Entity){.type = ENTITY_PLAYER, .x = map_x * TILEW, .y = map_y * TILEH, .orientation = ORIENT_RIGHT, .sprite = SPRITE_RIGHT, .state = STATE_ALIVE};
+        return MK_TILE(TILETYPE_PLAYER, 0);
+    case TILE_PLAYER_FACE_DOWN:
+        game.player = (Entity){.type = ENTITY_PLAYER, .x = map_x * TILEW, .y = map_y * TILEH, .orientation = ORIENT_DOWN , .sprite = SPRITE_DOWN , .state = STATE_ALIVE};
+        return MK_TILE(TILETYPE_PLAYER, 0);
+    case TILE_PLAYER_FACE_LEFT:
+        game.player = (Entity){.type = ENTITY_PLAYER, .x = map_x * TILEW, .y = map_y * TILEH, .orientation = ORIENT_LEFT , .sprite = SPRITE_LEFT , .state = STATE_ALIVE};
+        return MK_TILE(TILETYPE_PLAYER, 0);
+
+    case TILE_ENEMY1_FACE_UP:
+        if(load_entity(ENTITY_ENEMY1, map_x * TILEW, map_y * TILEH, STATE_ALIVE, ORIENT_UP   , SPRITE_UP)){
+            return MK_TILE(TILETYPE_ERROR, 0);
+        }
+        return MK_TILE(TILETYPE_ENTITY, game.entity_count - 1);
+    case TILE_ENEMY1_FACE_RIGHT:
+        if(load_entity(ENTITY_ENEMY1, map_x * TILEW, map_y * TILEH, STATE_ALIVE, ORIENT_RIGHT, SPRITE_RIGHT)){
+            return MK_TILE(TILETYPE_ERROR, 0);
+        }
+        return MK_TILE(TILETYPE_ENTITY, game.entity_count - 1);
+    case TILE_ENEMY1_FACE_DOWN:
+        if(load_entity(ENTITY_ENEMY1, map_x * TILEW, map_y * TILEH, STATE_ALIVE, ORIENT_DOWN , SPRITE_DOWN)){
+            return MK_TILE(TILETYPE_ERROR, 0);
+        }
+        return MK_TILE(TILETYPE_ENTITY, game.entity_count - 1);
+    case TILE_ENEMY1_FACE_LEFT:
+        if(load_entity(ENTITY_ENEMY1, map_x * TILEW, map_y * TILEH, STATE_ALIVE, ORIENT_LEFT , SPRITE_LEFT)){
+            return MK_TILE(TILETYPE_ERROR, 0);
+        }
+        return MK_TILE(TILETYPE_ENTITY, game.entity_count - 1);
+    
+    default:
+        VERROR("Invalid tile %i", tile);
+        return MK_TILE(TILETYPE_ERROR, 0);
+    }
+}
+
+#define loadMap(map) load_map(map, map##w, map##h)
 
 int load_map(const unsigned char* src, int w, int h){
 
@@ -61,33 +95,55 @@ int load_map(const unsigned char* src, int w, int h){
 
     for(int i = 0; i < h; i+=1){
         for(int j = 0; j < w; j+=1){
-            if(src[i * w + j] >= TILE_FIRST_ENTITY_ID && src[i * w + j] <= TILE_LAST_ENTITY_ID){
-                load_entity(src[i * w + j] - TILE_FIRST_ENTITY_ID + 1, i, j);
-                dest->map[i * w + j] = TILE_EMPTY;
-            }
-            else if(src[i * w + j] < TILE_COUNT) dest->map[i * w + j] = src[i * w + j];
-            else dest->map[i * w + j] = TILE_EMPTY;
+            dest->map[i * dest->w + j] = load_tile_component(src[i * w + j], j, i);
         }
     }
     return 0;
 }
 
+static const Color* get_entity_palette(int entity){
+    switch (entity)
+    {
+    case ENTITY_PLAYER: return player_palette;
+    case ENTITY_ENEMY1: return enemy1_palette;
+    
+    default: { VERROR("Invalid entity %i", entity); } return NULL;
+    }
+}
+
+static int draw_tile(int tile, int x, int y){
+    const int tile_data = TILE_DATA(tile);
+    switch (TILE_TYPE(tile))
+    {
+    case TILETYPE_TILE:
+        fill_rect(game.draw_canvas, x, y, TILEW, TILEH, map_palette[tile_data]);
+        return 0;
+    case TILETYPE_PLAYER:
+        if(game.player.state & STATE_ALIVE) return copy_sprite(game.draw_canvas, x, y, SPRITE_ORIENTATION + game.player.orientation, player_palette);
+        return copy_sprite(game.draw_canvas, x, y, SPRITE_DEAD, player_palette);
+    case TILETYPE_ENTITY:
+        return copy_sprite(game.draw_canvas, x, y, game.entities[tile_data].sprite, get_entity_palette(game.entities[tile_data].type));
+    default:
+        break;
+    }
+}
+
 void draw_map(){
     if(!game.map.map) return;
 
-    const int irange = 1 + game.camera.h / TILEH;
-    const int jrange = 1 + game.camera.w / TILEW;
+    const int ioffset = game.camera.y / TILEH;
+    const int joffset = game.camera.x / TILEW;
+    const int irange  = 1 + game.camera.h / TILEH;
+    const int jrange  = 1 + game.camera.w / TILEW;
+
+    int randomtile = 0;
+
     for(int i = 0; i < irange; i+=1){
         for(int j = 0; j < jrange; j+=1){
-            const int tile = (int) get_tile(game.map, game.camera.x / TILEW + j, game.camera.y / TILEH + i);
-            if(tile)
-                fill_rect(
-                    game.draw_canvas,
-                    j * TILEW - (game.camera.x % TILEW),
-                    i * TILEH - (game.camera.y % TILEH),
-                    TILEW, TILEH,
-                    (tile > 31)? 0xFF0000FF : map_palette[tile]
-                );
+            const Tile tile = get_tile(game.map, j + joffset, i + ioffset);
+            if(draw_tile(tile, j * TILEW - (game.camera.x % TILEW), i * TILEH - (game.camera.y % TILEH))){
+                VERROR("Could not draw tile %16llx", (long long) tile);
+            }
         }
     }
 }
@@ -107,7 +163,7 @@ int level_update(int cmd){
         game.debug = !game.debug;
         break;
     case CMD_RESTART:
-        load_map(map1, map1w, map1h);
+        loadMap(map1);
         break;
     case CMD_ENTER:
         game.update = main_screen_update;
@@ -139,7 +195,7 @@ int level_update(int cmd){
             fill_rect(
                 game.draw_canvas,
                 (path[i] % game.map.w) * TILEW - game.camera.x,
-                (path[i] / game.map.w) * TILEH - game.camera.y,
+                ((int) (path[i] / game.map.w)) * TILEH - game.camera.y,
                 TILEW, TILEH,
                 0xAA0000BB
             );
@@ -157,9 +213,14 @@ int level_update(int cmd){
         int dx = 0;
         int dy = 0;
         orientation_direction(game.player.orientation, &dx, &dy);
-        if(!get_tile(game.map, game.player.x / TILEW + dx, game.player.y / TILEH + dy)){
+        const Tile tile = get_tile(game.map, game.player.x / TILEW + dx, game.player.y / TILEH + dy);
+        if(tile == TILE_EMPTY){
+            move_tile(game.player.x / TILEW, game.player.y / TILEH, game.player.x / TILEW + dx, game.player.y / TILEH + dy);
             game.player.x += dx * TILEW;
             game.player.y += dy * TILEH;
+        }
+        else if(TILE_TYPE(tile) == TILETYPE_ENTITY){
+            game.entities[TILE_DATA(tile)].state = STATE_DEAD;
         }
     }
         break;
@@ -173,11 +234,19 @@ int level_update(int cmd){
         int dx = 0;
         int dy = 0;
         orientation_direction(game.player.orientation, &dx, &dy);
-        if(!get_tile(game.map, game.player.x / TILEW - dx, game.player.y / TILEH - dy)){
+        const Tile tile = get_tile(game.map, game.player.x / TILEW - dx, game.player.y / TILEH - dy);
+        if(tile == TILE_EMPTY){
+            move_tile(game.player.x / TILEW, game.player.y / TILEH, game.player.x / TILEW - dx, game.player.y / TILEH - dy);
             game.player.x -= dx * TILEW;
             game.player.y -= dy * TILEH;
         }
+        else if(TILE_TYPE(tile) == TILETYPE_ENTITY){
+            game.entities[TILE_DATA(tile)].state = STATE_DEAD;
+        }
     }
+        break;
+    case CMD_CHEAT_REVIVE:
+        game.player.state |= STATE_ALIVE;
         break;
     
     default:
@@ -189,24 +258,8 @@ int level_update(int cmd){
 
     clear_rect(game.draw_canvas, 0, 0, game.camera.w, game.camera.h, BACKGROUND_COLOR);
 
-    draw_map();
-
-    copySprite(
-        game.draw_canvas,
-        game.player.x - game.camera.x, game.player.y - game.camera.y,
-        (game.player.state == STATE_DEAD)? SPRITE_DEAD : SPRITE_ORIENTATION + game.player.orientation,
-        player_palette
-    );
-
     for(int i = 0; i < game.entity_count; ){
-        if(!game.entities[i].update){
-            for(int j = i + 1; j < game.entity_count; j+=1){
-                game.entities[j - 1] = game.entities[j];
-            }
-            game.entity_count -= 1;
-            continue;
-        }
-        if(game.entities[i].update(game.entities + i)){
+        if(update_entity(&game.entities[i])){
             for(int j = i + 1; j < game.entity_count; j+=1){
                 game.entities[j - 1] = game.entities[j];
             }
@@ -215,6 +268,8 @@ int level_update(int cmd){
         }
         i+=1;
     }
+
+    draw_map();
 
     fill_rect(
         game.draw_canvas,
@@ -274,14 +329,6 @@ int main_screen_update(int cmd){
     );
 
     return 0;
-}
-
-
-int general_check(){
-
-    int output = 0;
-
-    return output;
 }
 
 int game_init(Pixel* draw_canvas_pixels, int w, int h, int stride){
