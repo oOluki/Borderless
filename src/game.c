@@ -111,10 +111,72 @@ static const Color* get_entity_palette(int entity){
     }
 }
 
+static int console_draw_tile(int tile){
+    const int tile_data = TILE_DATA(tile);
+    switch (TILE_TYPE(tile))
+    {
+    case TILETYPE_NONE:
+        printf("  ");
+        return 0;
+    case TILETYPE_TILE:
+        printf("%c%c", console_map_palette[tile_data], console_map_palette[tile_data]);
+        return 0;
+    case TILETYPE_PLAYER:
+        if(game.player.state & STATE_ALIVE){
+            printf("%c%c", console_player_palette, console_sprite_sheet[SPRITE_ORIENTATION + game.player.orientation]);
+            return 0;
+        }
+        printf("%c%c", console_player_palette, console_sprite_sheet[SPRITE_DEAD]);
+        return 0;
+    case TILETYPE_ENTITY:
+        printf("%c%c", console_enemy1_palette, console_sprite_sheet[game.entities[tile_data].sprite]);
+        return 0;
+    default:
+        VERROR("Invalid tile type %i", (int) TILE_TYPE(tile));
+        return 1;
+    }
+}
+
+void console_draw_map(){
+
+    if(!game.map.map) return;
+
+    const int ioffset = game.camera.y / TILEH;
+    const int joffset = game.camera.x / TILEW;
+    const int irange  = 1 + game.camera.h / TILEH;
+    const int jrange  = 1 + game.camera.w / TILEW;
+
+    printf("    ");
+    for(int j = 0; j < jrange; j+=2){
+        printf("%2i  ", j);
+    }
+
+    printf("\n");
+
+    for(int i = 0; i < irange; i+=1){
+        printf("%2i- ", i);
+        for(int j = 0; j < jrange; j+=1){
+            const Tile tile = get_tile(game.map, j + joffset, i + ioffset);
+            if(console_draw_tile(tile)){
+                VERROR("Could not draw tile %16llx", (long long) tile);
+            }
+        }
+        printf("\n");
+    }
+
+    for(int j = 1; j < jrange; j+=2){
+        printf("  %2i", j);
+    }
+    printf("\n");
+}
+
+
 static int draw_tile(int tile, int x, int y){
     const int tile_data = TILE_DATA(tile);
     switch (TILE_TYPE(tile))
     {
+    case TILETYPE_NONE:
+        return 0;
     case TILETYPE_TILE:
         fill_rect(game.draw_canvas, x, y, TILEW, TILEH, map_palette[tile_data]);
         return 0;
@@ -124,7 +186,8 @@ static int draw_tile(int tile, int x, int y){
     case TILETYPE_ENTITY:
         return copy_sprite(game.draw_canvas, x, y, game.entities[tile_data].sprite, get_entity_palette(game.entities[tile_data].type));
     default:
-        break;
+        VERROR("Invalid tile type %i", (int) TILE_TYPE(tile));
+        return 1;
     }
 }
 
@@ -135,8 +198,6 @@ void draw_map(){
     const int joffset = game.camera.x / TILEW;
     const int irange  = 1 + game.camera.h / TILEH;
     const int jrange  = 1 + game.camera.w / TILEW;
-
-    int randomtile = 0;
 
     for(int i = 0; i < irange; i+=1){
         for(int j = 0; j < jrange; j+=1){
@@ -256,7 +317,8 @@ int level_update(int cmd){
     game.camera.x = (game.player.x + TILEW / 2) - game.camera.w / 2;
     game.camera.y = (game.player.y + TILEH / 2) - game.camera.h / 2;
 
-    clear_rect(game.draw_canvas, 0, 0, game.camera.w, game.camera.h, BACKGROUND_COLOR);
+    if(game.console_mode)   printf("\x1B[2J\x1B[H\n");
+    else                    clear_rect(game.draw_canvas, 0, 0, game.camera.w, game.camera.h, BACKGROUND_COLOR);
 
     for(int i = 0; i < game.entity_count; ){
         if(update_entity(&game.entities[i])){
@@ -269,7 +331,8 @@ int level_update(int cmd){
         i+=1;
     }
 
-    draw_map();
+    if(game.console_mode) console_draw_map();
+    else                  draw_map();
 
     fill_rect(
         game.draw_canvas,

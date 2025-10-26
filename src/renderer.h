@@ -126,27 +126,13 @@ int copy_sprite(Surface surface, int x, int y, int _sprite, const Color* palette
 
     for( ; i < irange; i+=1){
         for(int j = j0; j < jrange; j+=1){
-            //const uint32_t c1 = surface.pixels[(y + i) * surface.stride + (x + j)];
-            //const uint32_t r1 = (c1 >>  0) & 0xFF;
-            //const uint32_t g1 = (c1 >>  8) & 0xFF;
-            //const uint32_t b1 = (c1 >> 16) & 0xFF;
-            //const uint32_t a1 = (c1 >> 24) & 0xFF;
-            //const uint32_t c2 = palette[sprite[i * SPRITE_SHEET_STRIDE + j]];
-            //const uint32_t r2 = (c2 >>  0) & 0xFF;
-            //const uint32_t g2 = (c2 >>  8) & 0xFF;
-            //const uint32_t b2 = (c2 >> 16) & 0xFF;
-            //const uint32_t a2 = (c2 >> 24) & 0xFF;
-            //const uint32_t r3 = blend_color_channel(r2, a2, r1);
-            //const uint32_t g3 = blend_color_channel(g2, a2, g1);
-            //const uint32_t b3 = blend_color_channel(b2, a2, b1);
-            //surface.pixels[(y + i) * surface.stride + (x + j)] = (r3 << 0) | (g3 << 8) | (b3 << 16) | (a1 << 24);
             surface.pixels[(y + i) * surface.stride + (x + j)] = blend_colors(
                 palette[sprite[i * SPRITE_SHEET_STRIDE + j]],
                 surface.pixels[(y + i) * surface.stride + (x + j)]
             );
         }
     }
-    
+
     return 0;
 }
 
@@ -171,13 +157,18 @@ void render_text(Surface surface, int x, int y, const char* txt, uint32_t color)
 
 }
 
+static const char console_palette[] = {' ', 'X', '#', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', 'p', '@', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\''};
+
+static const char console_general_palette[] = {'*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*'};
+static const char console_map_palette[]     = {' ', 'X', '#'};
+static const char console_player_palette    = 'p';
+static const char console_enemy1_palette    = '@';
+
+
 static const uint32_t general_palette[] = {0x00000000, 0xff050305, 0xff41102e, 0xff35174a, 0xff3a1f6f, 0xff430e27, 0xff10106a, 0xff2e2e8a, 0xff524c67, 0xff0f6c40, 0xff3f5188, 0xff287377, 0xff8a2e36, 0xff955e50, 0xff683e98, 0xff7504d2, 0xff735221, 0xff89931a, 0xff484861, 0xff7c698c, 0xff629627, 0xff828282, 0xff0875e2, 0xff537194, 0xff2cb41d, 0xff499263, 0xff1b363b, 0xff077283, 0xff12edbe, 0xff56e6eb, 0xffa1fcfc, 0xffd6ffff};
 static const uint32_t map_palette[]     = {0x00000000, 0xfff5d6e8, 0xff3c2845, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0xffcc1e24, 0xff0909d7, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000};
 static const uint32_t player_palette[]  = {0x00000000, general_palette[12], general_palette[13]};
 static const uint32_t enemy1_palette[]  = {0x00000000, general_palette[06], general_palette[07]};
-
-static const char spalette[] = {' ', '#', '=', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', 'p', '@', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\''};
-
 
 #define copySprite(surface, x, y, _sprite, palette) copy_sprite(surface, x, y, _sprite, palette)
 

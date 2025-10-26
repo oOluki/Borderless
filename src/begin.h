@@ -7,12 +7,6 @@
 
 #define GAME_NAME "Borderless"
 
-#define TILEW 8
-#define TILEH 8
-
-#define FPS 30
-#define FDT (1000 / FPS)
-
 #define ERROR(MSG) fprintf(stderr, "[ERROR] " __FILE__ ":%i:0: " MSG "\n", __LINE__)
 #define VERROR(MSG, ...) fprintf(stderr, "[ERROR] " __FILE__ ":%i:0: " MSG "\n", __LINE__, __VA_ARGS__)
 
@@ -32,9 +26,28 @@
 
 #define ENEMY1_CHILL 2
 
-#define Color uint32_t
+#ifdef IO_VERSION
 
-#define BACKGROUND_COLOR 0xFF999999
+    #define Color char
+
+    #define BACKGROUND_COLOR ' '
+
+    #define TILEW 1
+    #define TILEH 1
+
+#else
+
+    #define Color uint32_t
+
+    #define BACKGROUND_COLOR 0xFF999999
+
+    #define TILEW 8
+    #define TILEH 8
+
+    #define FPS 30
+    #define FDT (1000 / FPS)
+
+#endif
 
 // the bit mask where a tile's type is stored in a tile
 #define TILE_TYPE_MASK 7
@@ -151,7 +164,9 @@ enum Cmd{
     CMD_FINNISHED,
 
     // for counting purposes
-    CMD_COUNT
+    CMD_COUNT,
+
+    CMD_ERROR
 };
 
 enum Buttons{
@@ -239,6 +254,8 @@ typedef struct Ray
 typedef struct Game{
 
     int             active;
+
+    int             console_mode;
 
     Surface         draw_canvas;
 
