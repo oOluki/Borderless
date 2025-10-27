@@ -5,6 +5,10 @@
 #include <stdint.h>
 #include <math.h>
 
+#ifndef DONT_SUPPORT_SDL
+    #define SUPPORT_SDL 1
+#endif
+
 #define GAME_NAME "Borderless"
 
 #define ERROR(MSG) fprintf(stderr, "[ERROR] " __FILE__ ":%i:0: " MSG "\n", __LINE__)
@@ -26,28 +30,16 @@
 
 #define ENEMY1_CHILL 2
 
-#ifdef IO_VERSION
+#define Color uint32_t
 
-    #define Color char
+#define BACKGROUND_COLOR 0xFF999999
 
-    #define BACKGROUND_COLOR ' '
+#define TILEW 8
+#define TILEH 8
 
-    #define TILEW 1
-    #define TILEH 1
+#define FPS 30
+#define FDT (1000 / FPS)
 
-#else
-
-    #define Color uint32_t
-
-    #define BACKGROUND_COLOR 0xFF999999
-
-    #define TILEW 8
-    #define TILEH 8
-
-    #define FPS 30
-    #define FDT (1000 / FPS)
-
-#endif
 
 // the bit mask where a tile's type is stored in a tile
 #define TILE_TYPE_MASK 7
@@ -65,12 +57,13 @@
 
 #define MK_TILE(TILE_TYPE, TILE_DATA) ((Tile) ((((TILE_TYPE) << TILE_TYPE_BITDEPTH) & TILE_TYPE_MASK) | (((TILE_DATA) << TILE_DATA_BITDEPTH) & TILE_DATA_MASK)))
 
-enum Palettes{
-    PALETTE1 = 0,
-    PALETTE_MAP,
+enum DrawModes{
+    DRAW_MODE_NONE = 0,
+    DRAW_MODE_GRAPHIC,
+    DRAW_MODE_CONSOLE,
 
     // for counting purposes
-    PALETTE_COUNT
+    DRAW_MODE_COUNT
 };
 
 enum Tiles{
@@ -105,6 +98,8 @@ enum TileTypes{
     TILETYPE_PLAYER,
     // tile is an entity, and this entity's position in the entities array is given by the next 5 bits of the tile
     TILETYPE_ENTITY,
+    // this tile is a part of a button part of id given by the next 5 bits of the tile
+    TILETYPE_BUTTON,
 
     // for counting purposes
     TILETYPE_COUNT,
@@ -143,6 +138,7 @@ enum Cmd{
     
     CMD_QUIT,
     CMD_UPDATE,
+    CMD_DISPLAY,
     CMD_DEBUG,
     CMD_RESTART,
 
@@ -171,7 +167,8 @@ enum Cmd{
 
 enum Buttons{
     BUTTON_NONE = 0,
-    BUTTON_TEST,
+    BUTTON_QUIT,
+    BUTTON_PLAY,
 
     // for counting purposes
     BUTTON_COUNT
@@ -255,7 +252,7 @@ typedef struct Game{
 
     int             active;
 
-    int             console_mode;
+    uint8_t         draw_mode;
 
     Surface         draw_canvas;
 
@@ -272,6 +269,10 @@ typedef struct Game{
 
     Task            tasks[64];
     uint8_t         task_count;
+
+    Button          buttons[10];
+    uint8_t         button_count;
+    uint8_t         selected_button;
 
     void*           user_data;
 

@@ -90,7 +90,7 @@ static inline int get_sprite_from_char(char c){
 	}
 }
 
-static const char console_sprite_sheet[] = {
+static const char simple_console_sprite_sheet[] = {
 	'0', '1', '2', '3', '4', '5', '6', '7',
 	'8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
 	'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n',

@@ -4,7 +4,7 @@
 #include "begin.h"
 
 
-void draw_map();
+void draw();
 
 int level_update(int cmd);
 
@@ -60,6 +60,54 @@ static inline int distance2(int x1, int y1, int x2, int y2){
 
 static inline Tile get_tile(const Map map, int x, int y){
     return (x < 0 || y < 0 || x >= map.w || y >= map.h)? 0 : map.map[y * map.w + x];
+}
+
+static char get_cmd_char(int cmd){
+    switch (cmd)
+    {
+    case CMD_NONE:              return ' ';
+    case CMD_QUIT:              return 'q';
+    case CMD_UPDATE:            return 'u';
+    case CMD_DISPLAY:           return 'R';
+    case CMD_DEBUG:             return 'D';
+    case CMD_RESTART:           return 'r';
+    case CMD_ENTER:             return 'e';
+    case CMD_PAUSE:             return 'p';
+    case CMD_MOUSECLICK:        return 'c';
+    case CMD_UP:                return 'w';
+    case CMD_RIGHT:             return 'd';
+    case CMD_LEFT:              return 'a';
+    case CMD_DOWN:              return 's';
+    case CMD_CHEAT_REVIVE:      return '@';
+    case CMD_SPECIAL_SIGNAL:    return '^';
+    case CMD_FINNISHED:         return '\n';
+    default:                    return '?';
+    }
+}
+
+static int get_char_cmd(int _char){
+    switch (_char)
+    {
+    case '\t':
+    case ' ':   return CMD_NONE;
+    case 'q':   return CMD_QUIT;
+    case 'R':   return CMD_DISPLAY;
+    case 'u':   return CMD_UPDATE;
+    case 'D':   return CMD_DEBUG;
+    case 'r':   return CMD_RESTART;
+    case 'e':   return CMD_ENTER;
+    case 'p':   return CMD_PAUSE;
+    case 'c':   return CMD_MOUSECLICK;
+    case 'w':   return CMD_UP;
+    case 'd':   return CMD_RIGHT;
+    case 'a':   return CMD_LEFT;
+    case 's':   return CMD_DOWN;
+    case '@':   return CMD_CHEAT_REVIVE;
+    case '^':   return CMD_SPECIAL_SIGNAL;
+    case '\0':
+    case '\n':  return CMD_FINNISHED;
+    default:    return CMD_ERROR;
+    }
 }
 
 

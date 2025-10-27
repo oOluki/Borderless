@@ -115,6 +115,17 @@ static int handle_keydown(SDL_Keycode key){
         }
         return CMD_NONE;
     case SDLK_SPACE:
+        if(user_data.ctrl){
+            closesdl_subsystem();
+            init_subsystem   = initascii_subsystem;
+            close_subsystem  = closeascii_subsystem;
+            update_subsystem = updateascii_subsystem;
+            get_cmd          = getascii_cmd;
+            init_subsystem();
+            game.update(CMD_DISPLAY);
+            update_subsystem();
+            return CMD_NONE;
+        }
         return CMD_UPDATE;
     case SDLK_KP_ENTER:
         if(user_data.ctrl){
@@ -138,7 +149,7 @@ static int handle_keydown(SDL_Keycode key){
     }
 }
 
-int get_cmd(){
+int getsdl_cmd(){
 
     SDL_Event* const event = &user_data.event;
 
@@ -160,6 +171,20 @@ int get_cmd(){
         const int screeny = (user_data.windowh - desth) / 2;
         game.mouse.x = ((user_data.event.motion.x - screenx) * game.camera.w) / destw;
         game.mouse.y = ((user_data.event.motion.y - screeny) * game.camera.h) / desth;
+        for(int i = 0; i < game.button_count; i+=1){
+            const Rect rect = (Rect){
+                (game.buttons[i].rect.x * game.camera.w) / 100,
+                (game.buttons[i].rect.y * game.camera.h) / 100,
+                (game.buttons[i].rect.w * game.camera.w) / 100,
+                (game.buttons[i].rect.h * game.camera.h) / 100
+            };
+            if(game.mouse.x >= rect.x && game.mouse.x <= rect.x + rect.w){
+                if(game.mouse.y >= rect.y && game.mouse.y <= rect.y + rect.h){
+                    game.selected_button = i;
+                }
+            }
+        }
+        if(game.update) game.update(CMD_DISPLAY);
     }
         return CMD_NONE;
     case SDL_MOUSEBUTTONDOWN:
@@ -191,7 +216,7 @@ int get_cmd(){
     return CMD_FINNISHED;
 }
 
-int update_subsystem(){
+int updatesdl_subsystem(){
 
     const int xscale = (WINDOW2SCREEN_SCALE_PRECISION * user_data.windoww) / game.camera.w;
     const int yscale = (WINDOW2SCREEN_SCALE_PRECISION * user_data.windowh) / game.camera.h;
@@ -257,7 +282,7 @@ int update_subsystem(){
     return 0;
 }
 
-int init_subsystem(){
+int initsdl_subsystem(){
     const int status = SDL_Init(SDL_INIT_EVERYTHING);
     if(status){
         VERROR("SDL failed to initialize: %s\n", SDL_GetError());
@@ -301,7 +326,7 @@ int init_subsystem(){
     return 0;
 }
 
-int close_subsystem(){
+int closesdl_subsystem(){
     SDL_FreeSurface(user_data.framebuffer);
     SDL_DestroyWindow(user_data.window);
     SDL_Quit();
