@@ -30,7 +30,7 @@ endif()
 
 include(CTest)
 
-add_test(general_test ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME} --input ${CMAKE_CURRENT_SOURCE_DIR}/input.txt -n)
+add_test(general_test ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME} -nd --input ${CMAKE_CURRENT_SOURCE_DIR}/input.txt)
 
 enable_testing()
 

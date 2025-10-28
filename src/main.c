@@ -90,6 +90,8 @@ int main(int argc, char** argv){
 
     int draw_mode_changed = 0;
 
+    int display_final_state = 0;
+
     int status = 0;
 
 // ==============================[parsing command line arguments]==========================================
@@ -287,6 +289,9 @@ int main(int argc, char** argv){
                     }
                     output = stdout;
                     break;
+		case 'd':
+		    display_final_state = 1;
+		    break;
                 
                 default:
                     fprintf(stderr, "[ERROR] invalid flag '%c' in '%s'\n", argv[i][j], argv[i]);
@@ -336,7 +341,7 @@ int main(int argc, char** argv){
 #ifdef SUPPORT_SDL
         get_cmd = getsdl_cmd;
 #else
-        get_cmd = getsdl_cmd;
+        get_cmd = getascii_cmd;
 #endif
     }
 
@@ -387,6 +392,11 @@ int main(int argc, char** argv){
         }
         if(output && cmd != CMD_NONE) fputc((int) get_cmd_char(cmd), output);
         update_subsystem();
+    }
+
+    if(display_final_state) {
+	    game.draw_mode = DRAW_MODE_CONSOLE;
+	    draw();
     }
 
     defer:

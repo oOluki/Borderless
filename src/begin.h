@@ -174,8 +174,6 @@ enum Buttons{
     BUTTON_COUNT
 };
 
-typedef struct Game Game;
-
 typedef Color Pixel;
 
 // in game tile
@@ -198,8 +196,6 @@ typedef struct Surface
     int    h;
     int    stride;
 } Surface;
-
-typedef struct Entity Entity;
 
 typedef struct Entity
 {
@@ -225,8 +221,6 @@ typedef struct Node {
     int x;
     int y;
 } Node;
-
-typedef struct Task Task;
 
 typedef struct Task
 {
