@@ -11,8 +11,9 @@ set(CMAKE_CXX_STANDARD 99)
 add_executable(${PROJECT_NAME} src/main.c)
 add_executable(map_designer map_designer.c)
 
-
-target_link_libraries(${PROJECT_NAME} PRIVATE m)
+if(NOT WIN32)
+  target_link_libraries(${PROJECT_NAME} PRIVATE m)
+endif()
 
 if(NOT DONT_SUPPORT_SDL)
   find_package(SDL2 QUIET)
