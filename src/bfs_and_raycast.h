@@ -119,8 +119,8 @@ Ray prepare_ray(int x, int y, int targetx, int targety){
         .x = (float) x,
         .y = (float) y,
         .r = 0,
-        .cos = (float)(targetx - x) / sqrtf((targetx - x) * (targetx - x) + (targety - y) * ( targety - y)),
-        .sin = (float)(targety - y) / sqrtf((targetx - x) * (targetx - x) + (targety - y) * ( targety - y))
+        .cos = (float)(targetx - x) / sqrtf((float) ((targetx - x) * (targetx - x) + (targety - y) * ( targety - y))),
+        .sin = (float)(targety - y) / sqrtf((float) ((targetx - x) * (targetx - x) + (targety - y) * ( targety - y)))
     };
 }
 

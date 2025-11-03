@@ -13,8 +13,8 @@ int main_screen_update(int cmd);
 int load_map(const unsigned char* src, int w, int h);
 
 float Q_rsqrt(float number) {
-    const float x2 = number * 0.5;
-    const float threehalfs = 1.5;
+    const float x2 = number * 0.5f;
+    const float threehalfs = 1.5f;
 
     const int i = 0x5f3759df - ((*(int*) &number) >> 1);
 
