@@ -3,6 +3,15 @@
 
 #include "game.h"
 
+#ifdef SUPPORT_SDL
+
+    extern int initsdl_subsystem();
+    extern int closesdl_subsystem();
+    extern int updatesdl_subsystem();
+    extern int getsdl_cmd();
+
+#endif // END OF #ifdef SUPPORT_SDL
+
 static char ascii_map[] = "@%#*+=-:. ";
 
 int getascii_color_index(Color color){

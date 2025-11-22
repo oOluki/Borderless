@@ -8,6 +8,14 @@
 #include "renderer.h"
 
 
+int load_buttons(const int buttons[BUTTON_COUNT]){
+    game.button_count = 0;
+    for(int i = 0; i < BUTTON_COUNT && buttons[i] != BUTTON_NONE; i+=1){
+        game.buttons[game.button_count++] = buttons[i];
+    }
+    return 0;
+}
+
 static inline int load_entity(int type, int x, int y, int state, int orientation, int sprite){
     if(game.entity_count + 1 >= ARLEN(game.entities)){
         ERROR("could not load entity, entity overflow\n");
@@ -248,45 +256,22 @@ void draw(){
     else if(game.draw_mode == DRAW_MODE_GRAPHIC){
         clear_rect(game.draw_canvas, 0, 0, game.camera.w, game.camera.h, BACKGROUND_COLOR);
         graphics_draw_map();
-        for(int i = 0; i < game.button_count && i < game.selected_button; i+=1){
-            const Button button = game.buttons[i];
+        for(int i = 0; i < game.button_count; i+=1){
+            const char* const button_name = get_button_name(game.buttons[i]);
+            const int button_name_len = _str_len(button_name);
             render_text(
                 game.draw_canvas,
-                (button.rect.x * game.camera.w) / 100,
-                (button.rect.y * game.camera.h) / 100,
-                get_button_name(button.buttonid), 0xFF111111
-            );
-        }
-        if(game.selected_button >= 0 && game.selected_button < game.button_count){
-            const Button button = game.buttons[game.selected_button];
-            render_text(
-                game.draw_canvas,
-                (button.rect.x * game.camera.w) / 100,
-                (button.rect.y * game.camera.h) / 100,
-                get_button_name(button.buttonid), 0xFF22AA11
-            );
-        }
-        for(int i = (game.selected_button + 1 > 0)? game.selected_button + 1 : 0; i < game.button_count; i+=1){
-            const Button button = game.buttons[i];
-            render_text(
-                game.draw_canvas,
-                (button.rect.x * game.camera.w) / 100,
-                (button.rect.y * game.camera.h) / 100,
-                get_button_name(button.buttonid), 0xFF111111
+                (game.camera.w - button_name_len * TILEW) / 2,
+                (i * game.camera.h) / game.button_count,
+                button_name, (i == game.selected_button)? 0xFF22AA11 : 0xFF111111
             );
         }
     }
     else if(game.draw_mode == DRAW_MODE_CONSOLE){
         console_draw_map();
         printf("options:\n");
-        for(int i = 0; i < game.button_count && i < game.selected_button; i+=1){
-            printf("\t%i- %s\n", i, get_button_name(game.buttons[i].buttonid));
-        }
-        if(game.selected_button >= 0 && game.selected_button < game.button_count){
-            printf("\t*- %s\n", get_button_name(game.buttons[game.selected_button].buttonid));
-        }
-        for(int i = (game.selected_button + 1 > 0)? game.selected_button + 1 : 0; i < game.button_count; i+=1){
-            printf("\t%i- %s\n", i, get_button_name(game.buttons[i].buttonid));
+        for(int i = 0; i < game.button_count; i+=1){
+            printf("%c%i- %s\n", (i == game.selected_button)? '*' : ' ', i, get_button_name(game.buttons[i]));
         }
     }
     else{
@@ -312,15 +297,15 @@ int level_update(int cmd){
     case CMD_DEBUG:
         game.debug = !game.debug;
         break;
-    case CMD_RESTART:
+    case CMD_CHEAT_RESTART:
         loadMap(map1);
         break;
-    case CMD_ENTER:
-        load_map(NULL, -1, -1);
+    case CMD_BACK:
         game.update = main_screen_update;
+        loadButtons(BUTTON_QUIT, BUTTON_PLAY);
         main_screen_update(CMD_DISPLAY);
         return 0;
-    case CMD_PAUSE: // TODO
+    case CMD_TOGGLE: // TODO
         return 0;
     case CMD_MOUSECLICK:{
         clear_rect(game.draw_canvas, 0, 0, game.camera.w, game.camera.h, BACKGROUND_COLOR);
@@ -396,9 +381,6 @@ int level_update(int cmd){
         }
     }
         break;
-    case CMD_CHEAT_REVIVE:
-        game.player.state |= STATE_ALIVE;
-        break;
     
     default:
         return 0;
@@ -437,46 +419,22 @@ int main_screen_update(int cmd){
     case CMD_UPDATE:
     case CMD_DISPLAY:
         break;
-    case CMD_UP:
+    case CMD_DOWN:
         if(game.button_count) game.selected_button = (game.selected_button + 1) % game.button_count;
         break;
-    case CMD_DOWN:
+    case CMD_UP:
         if(game.button_count) game.selected_button = (game.selected_button == 0)? game.button_count - 1 : game.selected_button - 1;
         break;
     case CMD_MOUSECLICK:
     case CMD_ENTER:
         if(game.selected_button >= 0 && game.selected_button < game.button_count){
-            return press_button(game.buttons[game.selected_button].buttonid);
+            return press_button(game.buttons[game.selected_button]);
         }
         return 0;
     
     default:
         return 0;
     }
-
-    const Button buttons[] = {
-        (Button){
-            .buttonid = BUTTON_QUIT,
-            .rect.x = 37, .rect.y = 10,
-            .rect.w = 25, .rect.h = 10
-        },
-        (Button){
-            .buttonid = BUTTON_PLAY,
-            .rect.x = 37, .rect.y = 25,
-            .rect.w = 25, .rect.h = 10
-        },
-        (Button){
-            .buttonid = BUTTON_NONE,
-            .rect.x = 37, .rect.y = 40,
-            .rect.w = 25, .rect.h = 10
-        }
-    };
-
-    for(int i = 0; i < ARLEN(buttons); i+=1){
-        game.buttons[i] = buttons[i];
-    }
-
-    game.button_count = ARLEN(buttons);
 
     draw();
 

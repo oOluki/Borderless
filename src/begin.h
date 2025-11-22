@@ -140,10 +140,10 @@ enum Cmd{
     CMD_UPDATE,
     CMD_DISPLAY,
     CMD_DEBUG,
-    CMD_RESTART,
 
+    CMD_BACK,
     CMD_ENTER,
-    CMD_PAUSE,
+    CMD_TOGGLE,
     CMD_MOUSECLICK,
 
     CMD_UP,
@@ -151,7 +151,7 @@ enum Cmd{
     CMD_LEFT,
     CMD_DOWN,
 
-    CMD_CHEAT_REVIVE,
+    CMD_CHEAT_RESTART,
 
     // for external user usage
     CMD_SPECIAL_SIGNAL,
@@ -228,11 +228,6 @@ typedef struct Task
     int data[10];
 } Task;
 
-typedef struct Button{
-    int   buttonid;
-    Rect rect;
-} Button;
-
 typedef struct Ray
 {
     float x;
@@ -264,7 +259,7 @@ typedef struct Game{
     Task            tasks[64];
     uint8_t         task_count;
 
-    Button          buttons[10];
+    int             buttons[10];
     uint8_t         button_count;
     uint8_t         selected_button;
 

@@ -3,12 +3,20 @@
 
 #include "begin.h"
 
+static int (*init_subsystem)();
+static int (*close_subsystem)();
+static int (*update_subsystem)();
+static int (*get_cmd)();
 
 void draw();
 
 int level_update(int cmd);
 
 int main_screen_update(int cmd);
+
+int load_buttons(const int buttons[BUTTON_COUNT]);
+
+#define loadButtons(BUTTONS...) load_buttons((int[]){BUTTONS, BUTTON_NONE})
 
 int load_map(const unsigned char* src, int w, int h);
 
@@ -62,23 +70,29 @@ static inline Tile get_tile(const Map map, int x, int y){
     return (x < 0 || y < 0 || x >= map.w || y >= map.h)? 0 : map.map[y * map.w + x];
 }
 
+static inline int _str_len(const char* str){
+    int len = 0;
+    for(; str[len]; len+=1);
+    return len;
+}
+
 static char get_cmd_char(int cmd){
     switch (cmd)
     {
     case CMD_NONE:              return ' ';
     case CMD_QUIT:              return 'q';
     case CMD_UPDATE:            return 'u';
-    case CMD_DISPLAY:           return 'R';
+    case CMD_DISPLAY:           return 'r';
     case CMD_DEBUG:             return 'D';
-    case CMD_RESTART:           return 'r';
+    case CMD_BACK:              return 'b';
     case CMD_ENTER:             return 'e';
-    case CMD_PAUSE:             return 'p';
+    case CMD_TOGGLE:            return 'p';
     case CMD_MOUSECLICK:        return 'c';
     case CMD_UP:                return 'w';
     case CMD_RIGHT:             return 'd';
     case CMD_LEFT:              return 'a';
     case CMD_DOWN:              return 's';
-    case CMD_CHEAT_REVIVE:      return '@';
+    case CMD_CHEAT_RESTART:     return '@';
     case CMD_SPECIAL_SIGNAL:    return '^';
     case CMD_FINNISHED:         return '\n';
     default:                    return '?';
@@ -91,18 +105,18 @@ static int get_char_cmd(int _char){
     case '\t':
     case ' ':   return CMD_NONE;
     case 'q':   return CMD_QUIT;
-    case 'R':   return CMD_DISPLAY;
+    case 'r':   return CMD_DISPLAY;
     case 'u':   return CMD_UPDATE;
     case 'D':   return CMD_DEBUG;
-    case 'r':   return CMD_RESTART;
+    case 'b':   return CMD_BACK;
     case 'e':   return CMD_ENTER;
-    case 'p':   return CMD_PAUSE;
+    case 'p':   return CMD_TOGGLE;
     case 'c':   return CMD_MOUSECLICK;
     case 'w':   return CMD_UP;
     case 'd':   return CMD_RIGHT;
     case 'a':   return CMD_LEFT;
     case 's':   return CMD_DOWN;
-    case '@':   return CMD_CHEAT_REVIVE;
+    case '@':   return CMD_CHEAT_RESTART;
     case '^':   return CMD_SPECIAL_SIGNAL;
     case '\0':
     case '\n':  return CMD_FINNISHED;

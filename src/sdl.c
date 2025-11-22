@@ -6,6 +6,10 @@
 
 #define WINDOW2SCREEN_SCALE_PRECISION 1000
 
+extern int initascii_subsystem();
+extern int closeascii_subsystem();
+extern int updateascii_subsystem();
+extern int getascii_cmd();
 
 static struct UserData{
 
@@ -36,6 +40,58 @@ enum UserMovement{
     USR_RIGHT = 1 << 3
 };
 
+
+int initsdl_subsystem(){
+    const int status = SDL_Init(SDL_INIT_EVERYTHING);
+    if(status){
+        VERROR("SDL failed to initialize: %s\n", SDL_GetError());
+        SDL_Quit();
+        return 1;
+    }
+    user_data.window = SDL_CreateWindow(
+        "Borderless",
+        SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+        SDL_WINDOW_FULLSCREEN_DESKTOP, SDL_WINDOW_FULLSCREEN_DESKTOP,
+        SDL_WINDOW_RESIZABLE
+    );
+    if(!user_data.window){
+        VERROR("SDL failed to create window: %s\n", SDL_GetError());
+        SDL_Quit();
+        return 1;
+    }
+    user_data.window_surface = SDL_GetWindowSurface(user_data.window);
+    if(!user_data.window_surface){
+        SDL_DestroyWindow(user_data.window);
+        VERROR("SDL failed to create window_surface: %s\n", SDL_GetError());
+        SDL_Quit();
+        return 1;
+    }
+    user_data.framebuffer = SDL_CreateRGBSurfaceWithFormatFrom(
+        game.draw_canvas.pixels,
+        game.draw_canvas.w, game.draw_canvas.h,
+        8, game.draw_canvas.w * sizeof(*game.draw_canvas.pixels),
+        SDL_PIXELFORMAT_RGBA32
+    );
+    if(!user_data.framebuffer){
+        SDL_DestroyWindow(user_data.window);
+        VERROR("SDL failed to create framebuffer: %s\n", SDL_GetError());
+        SDL_Quit();
+        return 1;
+    }
+
+    SDL_ShowCursor(SDL_ENABLE);
+    
+    user_data.t = SDL_GetTicks64();
+    return 0;
+}
+
+int closesdl_subsystem(){
+    SDL_FreeSurface(user_data.framebuffer);
+    SDL_DestroyWindow(user_data.window);
+    SDL_Quit();
+    return 0;
+}
+
 static inline int get_cmd_from_movement(int movement){
     if((movement & USR_LEFT)  && !(movement & USR_RIGHT)) return CMD_LEFT;
     if((movement & USR_RIGHT) && !(movement & USR_LEFT) ) return CMD_RIGHT;
@@ -49,9 +105,9 @@ static int handle_keyup(SDL_Keycode key){
     switch (key)
     {
     case SDLK_ESCAPE:
-        return CMD_QUIT;
+        return CMD_BACK;
     case SDLK_F5:
-        return CMD_RESTART;
+        return CMD_CHEAT_RESTART;
     case SDLK_w:
         user_data.movement &= ~USR_UP;
         return (!user_data.continuos)? CMD_UP   : CMD_NONE;
@@ -172,16 +228,10 @@ int getsdl_cmd(){
         game.mouse.x = ((user_data.event.motion.x - screenx) * game.camera.w) / destw;
         game.mouse.y = ((user_data.event.motion.y - screeny) * game.camera.h) / desth;
         for(int i = 0; i < game.button_count; i+=1){
-            const Rect rect = (Rect){
-                (game.buttons[i].rect.x * game.camera.w) / 100,
-                (game.buttons[i].rect.y * game.camera.h) / 100,
-                (game.buttons[i].rect.w * game.camera.w) / 100,
-                (game.buttons[i].rect.h * game.camera.h) / 100
-            };
-            if(game.mouse.x >= rect.x && game.mouse.x <= rect.x + rect.w){
-                if(game.mouse.y >= rect.y && game.mouse.y <= rect.y + rect.h){
-                    game.selected_button = i;
-                }
+            const int y0 = ((i + 0) * game.camera.h) / game.button_count;
+            const int y1 = ((i + 1) * game.camera.h) / game.button_count;
+            if(game.mouse.y >= y0 && game.mouse.y <= y1){
+                game.selected_button = i;
             }
         }
         if(game.update) game.update(CMD_DISPLAY);
@@ -279,57 +329,6 @@ int updatesdl_subsystem(){
         user_data.t = SDL_GetTicks64();
     }
 
-    return 0;
-}
-
-int initsdl_subsystem(){
-    const int status = SDL_Init(SDL_INIT_EVERYTHING);
-    if(status){
-        VERROR("SDL failed to initialize: %s\n", SDL_GetError());
-        SDL_Quit();
-        return 1;
-    }
-    user_data.window = SDL_CreateWindow(
-        "Borderless",
-        SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-        SDL_WINDOW_FULLSCREEN_DESKTOP, SDL_WINDOW_FULLSCREEN_DESKTOP,
-        SDL_WINDOW_RESIZABLE
-    );
-    if(!user_data.window){
-        VERROR("SDL failed to create window: %s\n", SDL_GetError());
-        SDL_Quit();
-        return 1;
-    }
-    user_data.window_surface = SDL_GetWindowSurface(user_data.window);
-    if(!user_data.window_surface){
-        SDL_DestroyWindow(user_data.window);
-        VERROR("SDL failed to create window_surface: %s\n", SDL_GetError());
-        SDL_Quit();
-        return 1;
-    }
-    user_data.framebuffer = SDL_CreateRGBSurfaceWithFormatFrom(
-        game.draw_canvas.pixels,
-        game.draw_canvas.w, game.draw_canvas.h,
-        8, game.draw_canvas.w * sizeof(*game.draw_canvas.pixels),
-        SDL_PIXELFORMAT_RGBA32
-    );
-    if(!user_data.framebuffer){
-        SDL_DestroyWindow(user_data.window);
-        VERROR("SDL failed to create framebuffer: %s\n", SDL_GetError());
-        SDL_Quit();
-        return 1;
-    }
-
-    SDL_ShowCursor(SDL_ENABLE);
-    
-    user_data.t = SDL_GetTicks64();
-    return 0;
-}
-
-int closesdl_subsystem(){
-    SDL_FreeSurface(user_data.framebuffer);
-    SDL_DestroyWindow(user_data.window);
-    SDL_Quit();
     return 0;
 }
 

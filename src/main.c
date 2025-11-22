@@ -1,24 +1,7 @@
 #include "game.c"
 
 
-static int (*init_subsystem)();
-static int (*close_subsystem)();
-static int (*update_subsystem)();
-static int (*get_cmd)();
-
-
-int initascii_subsystem();
-int closeascii_subsystem();
-int updateascii_subsystem();
-int getascii_cmd();
-
-
 #ifdef SUPPORT_SDL
-
-    int initsdl_subsystem();
-    int closesdl_subsystem();
-    int updatesdl_subsystem();
-    int getsdl_cmd();
 
     #include "sdl.c"
 
