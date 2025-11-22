@@ -89,9 +89,22 @@ int getascii_cmd(){
             ERROR("can't change to sdl, no sdl support\n");
 #endif // END OF #ifdef SUPPORT_SDL
             return CMD_NONE;
+        case 'h':
+            printf("commands are sequence of characters where each character represents one command, valid characters are:\n");
+            for(int i = 0; i < CMD_COUNT; i+=1){
+                printf("\t%c: %s\n", get_cmd_char(i), get_cmd_str(i));
+            }
+            printf(
+                "characters preffixed with - are signals, valid signals are\n"
+                "\t-l: clears the whole display\n"
+                "\t-d: toggles the display mode\n"
+                "\t-m: toggles the subsystem mode\n"
+                "\t-h: shows this help message\n"
+            );
+            return CMD_NONE;
         
         default:
-            VERROR("no signal for '%c'", c);
+            VERROR("no signal for '%c', enter h for little help message", c);
             return CMD_NONE;
         }
     }

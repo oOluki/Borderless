@@ -7,46 +7,6 @@
 
 #endif
 
-static inline int get_hex_digit(char c){
-    switch (c)
-    {
-    case '0': return 0;
-    case '1': return 1;
-    case '2': return 2;
-    case '3': return 3;
-    case '4': return 4;
-    case '5': return 5;
-    case '6': return 6;
-    case '7': return 7;
-    case '8': return 8;
-    case '9': return 9;
-    case 'a':
-    case 'A': return 10;
-    case 'b':
-    case 'B': return 11;
-    case 'c':
-    case 'C': return 12;
-    case 'd':
-    case 'D': return 13;
-    case 'e':
-    case 'E': return 14;
-    case 'f':
-    case 'F': return 15;
-    
-    default: return -1;
-    }
-}
-
-static int64_t parse_hex32(const char* str){
-    int64_t output = 0;
-    int i = 0;
-    int d = 0;
-    for(int i = 0; i < 8 && d >= 0; i+=1){
-        d = get_hex_digit(str[i]);
-        output = (output * 16) + d;
-    }
-    return (d < 0)? -1 : output;
-}
 
 #include "ascii.c"
 
@@ -64,7 +24,7 @@ static int cmp_str(const char* str1, const char* str2, int only_compare_untill_f
 
 int main(int argc, char** argv){
 
-    #define MAIN_RETURN_STATUS(STATUS) do { status = 1; goto defer; } while(0)
+    #define MAIN_RETURN_STATUS(STATUS) do { status = STATUS; goto defer; } while(0)
 
     static Pixel draw_canvas_pixels[800 * 600];
 
@@ -80,7 +40,31 @@ int main(int argc, char** argv){
 // ==============================[parsing command line arguments]==========================================
 
     for(int i = 1; i < argc; i+=1){
-        if(cmp_str(argv[i], "--input", 0)){
+        if(cmp_str(argv[i], "--help", 0)){
+            printf(
+                "simple game\n"
+                "usage: %s -<optional: flags>... --<optional: kwargs>...\n"
+                "flags can be:\n"
+                "\tc: draw in console simple mode\n"
+                "\tg: draw in graphical mode\n"
+                "\tn: don't draw at all\n"
+                "\tf: draw final state (even if the n flag is active)\n"
+                "\ti: take input from stdin\n"
+                "\to: print commands to stdout\n"
+                "kwargs can be:\n"
+                "\tinput <file>: take input from file\n"
+                "\toutput <file>: record commands to file, 'record' is equivalent to 'output'\n"
+                "\twidth=<width>: sets the camera width\n"
+                "\theight=<heigth>: sets the camera height\n"
+#ifdef SUPPORT_SDL
+                "\tuse_sdl: use sdl to render graphics\n"
+#endif
+                "\tuse_ascii: use ascii to render graphics\n",
+                argv[0]
+            );
+            MAIN_RETURN_STATUS(0);
+        }
+        else if(cmp_str(argv[i], "--input", 0)){
             if(i + 1 >= argc){
                 fprintf(stderr, "[ERROR] missing input file after \'--input\'\n");
                 MAIN_RETURN_STATUS(1);
@@ -134,50 +118,6 @@ int main(int argc, char** argv){
             }
             game.camera.h = height;
         }
-        else if(cmp_str(argv[i], "--palette", 0)){
-            if(i + 1 >= argc){
-                fprintf(stderr, "[ERROR] missing palette after --palette\n");
-                MAIN_RETURN_STATUS(1);
-            }
-            int palette_len = 0;
-            for(i+=1; argv[i][palette_len]; palette_len+=1);
-            if(palette_len != ARLEN(console_palette)){
-                fprintf(stderr, (palette_len < ARLEN(console_palette))? "[ERROR] palette missing cases\n" : "[ERROR] palette has too many terms\n");
-                MAIN_RETURN_STATUS(1);
-            }
-            char* opalette = (char*) console_palette;
-            palette_len = 0;
-            for(int j = 0; j < ARLEN(console_palette); j+=1){
-                for(int k = 0; k < palette_len; k+=1){
-                    if(console_palette[k] == argv[i][j]){
-                        fprintf(stderr, "[ERROR] palette has multiple '%c' term\n", argv[i][j]);
-                        MAIN_RETURN_STATUS(1);
-                    }
-                }
-                opalette[j] = argv[i][j];
-            }
-        }
-        else if(cmp_str(argv[i], "--s", 1)){
-            const int __s_len = sizeof("--s") / sizeof(char) - 1;
-            int len = 0;
-            for(; argv[i][len] && len < __s_len + 3; len+=1);
-            if(len != __s_len + 2){
-                fprintf(stderr, "[ERROR] invalid use of %.*s<old><new>: '%s'\n", __s_len, argv[i], argv[i]);
-                MAIN_RETURN_STATUS(1);
-            }
-            int found = 0;
-            for(int j = 0; j < ARLEN(console_palette); j+=1){
-                if(console_palette[j] == argv[i][__s_len]){
-                    found = 1;
-                    ((char*) (console_palette))[j] = argv[i][__s_len + 1];
-                    break;
-                }
-            }
-            if(!found){
-                fprintf(stderr, "[ERROR] '%c' symbol not found in palette\n", argv[i][2]);
-                MAIN_RETURN_STATUS(1);
-            }
-        }
         else if(cmp_str(argv[i], "--use_sdl", 0)){
 #ifdef SUPPORT_SDL
             init_subsystem   = initsdl_subsystem;
@@ -194,38 +134,6 @@ int main(int argc, char** argv){
             close_subsystem  = closeascii_subsystem;
             update_subsystem = updateascii_subsystem;
             get_cmd          = getascii_cmd;
-        }
-        else if(cmp_str(argv[i], "--ascii_swap", 1)){
-            const int ascii_swap_len = sizeof("--ascii_swap") / sizeof(char) - 1;
-            int len = 0;
-            for(; argv[i][len] && len < ascii_swap_len + 2; len+=1);
-            if(len != ascii_swap_len + 2){
-                fprintf(stderr, "[ERROR] invalid use of %.*s<old><new>: '%s'\n", ascii_swap_len, argv[i], argv[i]);
-                MAIN_RETURN_STATUS(1);
-            }
-        }
-        else if(cmp_str(argv[i], "--ascii_set", 1)){
-            const int ascii_swap_len = sizeof("--ascii_set") / sizeof(char) - 1;
-            int len = ascii_swap_len;
-            for(; argv[i][len] && len < ascii_swap_len + 10; len+=1);
-            if(len != ascii_swap_len + 10){
-                fprintf(stderr,
-                    "[ERROR] invalid use of %.*s<color>=<char>: '%s'\n"
-                    "[NOTE] color has to be in hexadecimal representation with all 4 channels (RGBA) present\n",
-                    ascii_swap_len, argv[i], argv[i]);
-                MAIN_RETURN_STATUS(1);
-            }
-            const int64_t color = parse_hex32(&argv[i][ascii_swap_len]);
-            if(color < 0){
-                fprintf(stderr, "[ERROR] Invalid color '%.*s' in '%s'\n", 8, &argv[i][ascii_swap_len], argv[i]);
-                MAIN_RETURN_STATUS(1);
-            }
-            if(argv[i][ascii_swap_len + 8] != '='){
-                fprintf(stderr, "[ERROR] missing '=' in %s\n", argv[i]);
-                MAIN_RETURN_STATUS(1);
-            }
-            const int index = getascii_color_index(color);
-            ascii_map[index] = argv[i][ascii_swap_len + 9];
         }
         else if(argv[i][0] == '-'){
             for(int j = 1; argv[i][j]; j+=1){
@@ -272,9 +180,9 @@ int main(int argc, char** argv){
                     }
                     output = stdout;
                     break;
-		case 'd':
-		    display_final_state = 1;
-		    break;
+                case 'f':
+                    display_final_state = 1;
+                    break;
                 
                 default:
                     fprintf(stderr, "[ERROR] invalid flag '%c' in '%s'\n", argv[i][j], argv[i]);
@@ -338,7 +246,7 @@ int main(int argc, char** argv){
 
 // ==============================[end of parsing command line arguments]==========================================
 
-    game.update(CMD_UPDATE);
+    game.update(CMD_DISPLAY);
 
     if(input){ // take input from file
 
@@ -380,13 +288,14 @@ int main(int argc, char** argv){
     if(display_final_state) {
 	    game.draw_mode = DRAW_MODE_CONSOLE;
 	    draw();
+        update_subsystem();
     }
 
     defer:
     if(input)  fclose(input);
-    if(output) fclose(output);
+    if(output && output != stdout) fclose(output);
 
-    if(close_subsystem()){
+    if(close_subsystem) if(close_subsystem()){
         return 1;
     }
 

@@ -124,6 +124,27 @@ static int get_char_cmd(int _char){
     }
 }
 
+const char* get_cmd_str(int cmd){
+    switch (cmd)
+    {
+    case CMD_QUIT:              return "CMD_QUIT";
+    case CMD_UPDATE:            return "CMD_UPDATE";
+    case CMD_DISPLAY:           return "CMD_DISPLAY";
+    case CMD_DEBUG:             return "CMD_DEBUG";
+    case CMD_BACK:              return "CMD_BACK";
+    case CMD_ENTER:             return "CMD_ENTER";
+    case CMD_TOGGLE:            return "CMD_TOGGLE";
+    case CMD_MOUSECLICK:        return "CMD_MOUSECLICK";
+    case CMD_UP:                return "CMD_UP";
+    case CMD_RIGHT:             return "CMD_RIGHT";
+    case CMD_LEFT:              return "CMD_LEFT";
+    case CMD_DOWN:              return "CMD_DOWN";
+    case CMD_CHEAT_RESTART:     return "CMD_CHEAT_RESTART";
+    case CMD_SPECIAL_SIGNAL:    return "CMD_SPECIAL_SIGNAL";
+    case CMD_FINNISHED:         return "CMD_FINNISHED";
+    default:                    return "CMD_NONE";
+    }
+}
 
 static Game game;
 

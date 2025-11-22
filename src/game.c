@@ -268,6 +268,7 @@ void draw(){
         }
     }
     else if(game.draw_mode == DRAW_MODE_CONSOLE){
+        printf("\x1B[2J\x1B[H\n");
         console_draw_map();
         printf("options:\n");
         for(int i = 0; i < game.button_count; i+=1){
