@@ -16,7 +16,7 @@ int main_screen_update(int cmd);
 
 int load_buttons(const int buttons[BUTTON_COUNT]);
 
-#define loadButtons(BUTTONS...) load_buttons((int[]){BUTTONS, BUTTON_NONE})
+#define loadButtons(...) load_buttons((int[]){__VA_ARGS__, BUTTON_NONE})
 
 int load_map(const unsigned char* src, int w, int h);
 
