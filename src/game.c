@@ -16,12 +16,12 @@ int load_buttons(const int buttons[BUTTON_COUNT]){
     return 0;
 }
 
-static inline int load_entity(int type, int x, int y, int state, int orientation, int sprite){
+static inline int load_entity(int type, int x, int y, int state, int orientation, int item){
     if(game.entity_count + 1 >= ARLEN(game.entities)){
         ERROR("could not load entity, entity overflow\n");
         return 1;
     }
-    game.entities[game.entity_count++] = (Entity){.type = type, .x = x, .y = y, .state = state, .orientation = orientation, .sprite = sprite};
+    game.entities[game.entity_count++] = (Entity){.type = type, .x = x, .y = y, .state = state, .orientation = orientation, .item = item};
     return 0;
 }
 
@@ -37,35 +37,35 @@ static Tile load_tile_component(int tile, int map_x, int map_y){
         return MK_TILE(TILETYPE_TILE, TILE_SWALL);
 
     case TILE_PLAYER_FACE_UP:
-        game.player = (Entity){.type = ENTITY_PLAYER, .x = map_x * TILEW, .y = map_y * TILEH, .orientation = ORIENT_UP   , .sprite = SPRITE_UP   , .state = STATE_ALIVE};
+        game.player = (Entity){.type = ENTITY_PLAYER, .x = map_x * TILEW, .y = map_y * TILEH, .orientation = ORIENT_UP   , .state = STATE_ALIVE};
         return MK_TILE(TILETYPE_PLAYER, 0);
     case TILE_PLAYER_FACE_RIGHT:
-        game.player = (Entity){.type = ENTITY_PLAYER, .x = map_x * TILEW, .y = map_y * TILEH, .orientation = ORIENT_RIGHT, .sprite = SPRITE_RIGHT, .state = STATE_ALIVE};
+        game.player = (Entity){.type = ENTITY_PLAYER, .x = map_x * TILEW, .y = map_y * TILEH, .orientation = ORIENT_RIGHT, .state = STATE_ALIVE};
         return MK_TILE(TILETYPE_PLAYER, 0);
     case TILE_PLAYER_FACE_DOWN:
-        game.player = (Entity){.type = ENTITY_PLAYER, .x = map_x * TILEW, .y = map_y * TILEH, .orientation = ORIENT_DOWN , .sprite = SPRITE_DOWN , .state = STATE_ALIVE};
+        game.player = (Entity){.type = ENTITY_PLAYER, .x = map_x * TILEW, .y = map_y * TILEH, .orientation = ORIENT_DOWN , .state = STATE_ALIVE};
         return MK_TILE(TILETYPE_PLAYER, 0);
     case TILE_PLAYER_FACE_LEFT:
-        game.player = (Entity){.type = ENTITY_PLAYER, .x = map_x * TILEW, .y = map_y * TILEH, .orientation = ORIENT_LEFT , .sprite = SPRITE_LEFT , .state = STATE_ALIVE};
+        game.player = (Entity){.type = ENTITY_PLAYER, .x = map_x * TILEW, .y = map_y * TILEH, .orientation = ORIENT_LEFT , .state = STATE_ALIVE};
         return MK_TILE(TILETYPE_PLAYER, 0);
 
     case TILE_ENEMY1_FACE_UP:
-        if(load_entity(ENTITY_ENEMY1, map_x * TILEW, map_y * TILEH, STATE_ALIVE, ORIENT_UP   , SPRITE_UP)){
+        if(load_entity(ENTITY_ENEMY1, map_x * TILEW, map_y * TILEH, STATE_ALIVE, ORIENT_UP   , 0)){
             return MK_TILE(TILETYPE_ERROR, 0);
         }
         return MK_TILE(TILETYPE_ENTITY, game.entity_count - 1);
     case TILE_ENEMY1_FACE_RIGHT:
-        if(load_entity(ENTITY_ENEMY1, map_x * TILEW, map_y * TILEH, STATE_ALIVE, ORIENT_RIGHT, SPRITE_RIGHT)){
+        if(load_entity(ENTITY_ENEMY1, map_x * TILEW, map_y * TILEH, STATE_ALIVE, ORIENT_RIGHT, 0)){
             return MK_TILE(TILETYPE_ERROR, 0);
         }
         return MK_TILE(TILETYPE_ENTITY, game.entity_count - 1);
     case TILE_ENEMY1_FACE_DOWN:
-        if(load_entity(ENTITY_ENEMY1, map_x * TILEW, map_y * TILEH, STATE_ALIVE, ORIENT_DOWN , SPRITE_DOWN)){
+        if(load_entity(ENTITY_ENEMY1, map_x * TILEW, map_y * TILEH, STATE_ALIVE, ORIENT_DOWN , 0)){
             return MK_TILE(TILETYPE_ERROR, 0);
         }
         return MK_TILE(TILETYPE_ENTITY, game.entity_count - 1);
     case TILE_ENEMY1_FACE_LEFT:
-        if(load_entity(ENTITY_ENEMY1, map_x * TILEW, map_y * TILEH, STATE_ALIVE, ORIENT_LEFT , SPRITE_LEFT)){
+        if(load_entity(ENTITY_ENEMY1, map_x * TILEW, map_y * TILEH, STATE_ALIVE, ORIENT_LEFT , 0)){
             return MK_TILE(TILETYPE_ERROR, 0);
         }
         return MK_TILE(TILETYPE_ENTITY, game.entity_count - 1);
@@ -162,13 +162,20 @@ static int console_draw_tile(int tile){
         return 0;
     case TILETYPE_PLAYER:
         if(game.player.state & STATE_ALIVE){
-            printf("%c%c", console_player_palette, simple_console_sprite_sheet[SPRITE_ORIENTATION + game.player.orientation]);
+            printf("%c%c", console_player_palette, simple_console_font[FONT_ORIENTATION + game.player.orientation]);
             return 0;
         }
-        printf("%c%c", console_player_palette, simple_console_sprite_sheet[SPRITE_DEAD]);
+        printf("%c%c", console_player_palette, simple_console_font[FONT_DEAD]);
         return 0;
     case TILETYPE_ENTITY:
-        printf("%c%c", console_enemy1_palette, simple_console_sprite_sheet[game.entities[tile_data].sprite]);
+        if(game.entities[tile_data].state & STATE_ALIVE){
+            if(game.entities[tile_data].state & STATE_ALERTED)
+                printf("%c%c", console_enemy1_palette, simple_console_font[FONT_ALERT]);
+            else
+                printf("%c%c", console_enemy1_palette, simple_console_font[FONT_ORIENTATION + game.entities[tile_data].orientation]);
+            return 0;
+        }
+        printf("%c%c", console_enemy1_palette, simple_console_font[FONT_DEAD]);
         return 0;
     default:
         VERROR("Invalid tile type %i", (int) TILE_TYPE(tile));
@@ -217,13 +224,38 @@ static int graphics_draw_tile(int tile, int x, int y){
     case TILETYPE_NONE:
         return 0;
     case TILETYPE_TILE:
-        fill_rect(game.draw_canvas, x, y, TILEW, TILEH, map_palette[tile_data]);
+        fill_rect(game.draw_canvas, x, y, TILEW, TILEH, palette[tile_data]);
         return 0;
-    case TILETYPE_PLAYER:
-        if(game.player.state & STATE_ALIVE) return copy_sprite(game.draw_canvas, x, y, SPRITE_ORIENTATION + game.player.orientation, player_palette);
-        return copy_sprite(game.draw_canvas, x, y, SPRITE_DEAD, player_palette);
-    case TILETYPE_ENTITY:
-        return copy_sprite(game.draw_canvas, x, y, game.entities[tile_data].sprite, get_entity_palette(game.entities[tile_data].type));
+    case TILETYPE_PLAYER:{
+        if(TILEW > entity_sprite_size) x += (TILEW - entity_sprite_size) / 2;
+        if(TILEH > entity_sprite_size) y += (TILEH - entity_sprite_size) / 2;
+        return copy_sprite(
+            game.draw_canvas, entity_spritesheet,
+            1, entity_sprite_size,
+            entity_sprite_size, entity_sprite_size,
+            x, y, (game.player.state & STATE_ALIVE)? game.player.orientation : ENTITY_SPRITE_DEAD,
+            player_palette
+        );
+    }
+    case TILETYPE_ENTITY:{
+        if(TILEW > entity_sprite_size) x += (TILEW - entity_sprite_size) / 2;
+        if(TILEH > entity_sprite_size) y += (TILEH - entity_sprite_size) / 2;
+        if(game.entities[tile_data].state & STATE_ALERTED){
+            copy_sprite(
+                game.draw_canvas,
+                fontsheet, FONT_ELEMENTS_PER_ROW,
+                FONT_STRIDE, FONT_SIZE, FONT_SIZE,
+                x, y - entity_sprite_size, FONT_ALERT, enemy1_palette
+            );
+        }
+        return copy_sprite(
+            game.draw_canvas, entity_spritesheet,
+            1, entity_sprite_size,
+            entity_sprite_size, entity_sprite_size,
+            x, y, (game.entities[tile_data].state & STATE_ALIVE)? game.entities[tile_data].orientation : ENTITY_SPRITE_DEAD,
+            enemy1_palette
+        );
+    }
     default:
         VERROR("Invalid tile type %i", (int) TILE_TYPE(tile));
         return 1;
@@ -261,7 +293,7 @@ void draw(){
             const int button_name_len = _str_len(button_name);
             render_text(
                 game.draw_canvas,
-                (game.camera.w - button_name_len * TILEW) / 2,
+                (game.camera.w - button_name_len * FONT_SIZE) / 2,
                 (i * game.camera.h) / game.button_count,
                 button_name, (i == game.selected_button)? 0xFF22AA11 : 0xFF111111
             );
@@ -447,7 +479,7 @@ int game_init(Pixel* draw_canvas_pixels, int draw_canvas_w, int draw_canvas_h){
     game.draw_canvas = create_surface(draw_canvas_pixels, draw_canvas_w, draw_canvas_h, draw_canvas_w);
 
     if(draw_canvas_w * draw_canvas_h < game.draw_canvas.w * game.draw_canvas.h || draw_canvas_w < game.draw_canvas.w){
-        ERROR("[ERROR] draw_canvas_pixels does not have minimum required capacity\n");
+        ERROR("draw_canvas_pixels does not have minimum required capacity\n");
         return 1;
     }
 

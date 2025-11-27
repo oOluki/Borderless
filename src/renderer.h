@@ -86,48 +86,56 @@ void draw_rect(Surface surface, int _x, int _y, int w, int h, Color color){
 
 #define drawrect(surface, rect, color) draw_rect((surface), (rect).x, (rect).y, (rect).w, (rect).h, color)
 
-int copy_sprite(Surface surface, int x, int y, int _sprite, const Color* palette){
+int copy_sprite(
+    Surface surface,
+    const char* spritesheet,
+    int sprites_per_row,
+    int stride,
+    int spritew, int spriteh,
+    int x, int y, int _sprite,
+    const Color* palette
+){
 
     if(!palette) return 1;
 
     const unsigned char* const sprite =
-        sprite_sheet +
-        (_sprite % SPRITES_PERROW) * SPRITE_DIM +
-        ((int) (_sprite / SPRITES_PERROW)) * SPRITE_DIM * SPRITE_SHEET_STRIDE;
+        spritesheet +
+        (_sprite % sprites_per_row) * spritew +
+        ((int) (_sprite / sprites_per_row)) * spriteh * stride;
 
     int i;
     int j0;
-    int irange = SPRITE_DIM;
-    int jrange = SPRITE_DIM;
+    int irange = spritew;
+    int jrange = spriteh;
 
-    if(x >= surface.w || y >= surface.h || x < -SPRITE_DIM || y < -SPRITE_DIM) return 0;
+    if(x >= surface.w || y >= surface.h || x < -spritew || y < -spriteh) return 0;
 
     if(x < 0){
-        jrange = SPRITE_DIM + x;
+        jrange = spritew + x;
         j0 = -x;
-    } else if(x + SPRITE_DIM >= surface.w){
+    } else if(x + spritew >= surface.w){
         jrange = surface.w - x;
         j0 = 0;
     } else{
-        jrange = SPRITE_DIM;
+        jrange = spritew;
         j0 = 0;
     }
 
     if(y < 0){
-        irange = SPRITE_DIM + y;
+        irange = spriteh + y;
         i = -y;
-    } else if(y + SPRITE_DIM >= surface.h){
+    } else if(y + spriteh >= surface.h){
         irange = surface.h - y;
         i = 0;
     } else{
-        irange = SPRITE_DIM;
+        irange = spriteh;
         i = 0;
     }
 
     for( ; i < irange; i+=1){
         for(int j = j0; j < jrange; j+=1){
             surface.pixels[(y + i) * surface.stride + (x + j)] = blend_colors(
-                palette[sprite[i * SPRITE_SHEET_STRIDE + j]],
+                palette[sprite[i * stride + j]],
                 surface.pixels[(y + i) * surface.stride + (x + j)]
             );
         }
@@ -145,14 +153,56 @@ void render_text(Surface surface, int x, int y, const char* txt, uint32_t color)
     for(int i = 0; txt[i]; i+=1){
 
         if(txt[i] == '\n'){
-            y +=SPRITE_DIM;
+            y +=FONT_SIZE;
             continue;
         }
-        const int sprite = get_sprite_from_char(txt[i]);
+        int _sprite = get_sprite_from_char(txt[i]);
+        if(_sprite < 0) _sprite = FONT_SPACE;
 
-        copy_sprite(surface, x, y, (sprite < 0)? SPRITE_SPACE : sprite, _palette);
+        const unsigned char* const sprite =
+        fontsheet +
+        (_sprite % FONT_ELEMENTS_PER_ROW) * FONT_SIZE +
+        ((int) (_sprite / FONT_ELEMENTS_PER_ROW)) * FONT_SIZE * FONT_STRIDE;
 
-        x+=SPRITE_DIM;
+    int i;
+    int j0;
+    int irange = FONT_SIZE;
+    int jrange = FONT_SIZE;
+
+    if(x >= surface.w || y >= surface.h || x < -FONT_SIZE || y < -FONT_SIZE) continue;
+
+    if(x < 0){
+        jrange = FONT_SIZE + x;
+        j0 = -x;
+    } else if(x + FONT_SIZE >= surface.w){
+        jrange = surface.w - x;
+        j0 = 0;
+    } else{
+        jrange = FONT_SIZE;
+        j0 = 0;
+    }
+
+    if(y < 0){
+        irange = FONT_SIZE + y;
+        i = -y;
+    } else if(y + FONT_SIZE >= surface.h){
+        irange = surface.h - y;
+        i = 0;
+    } else{
+        irange = FONT_SIZE;
+        i = 0;
+    }
+
+    for( ; i < irange; i+=1){
+        for(int j = j0; j < jrange; j+=1){
+            surface.pixels[(y + i) * surface.stride + (x + j)] = blend_colors(
+                sprite[i * FONT_STRIDE + j]? color : (uint32_t) 0x00000000,
+                surface.pixels[(y + i) * surface.stride + (x + j)]
+            );
+        }
+    }
+
+        x+=FONT_SIZE;
     }
 
 }
@@ -166,10 +216,16 @@ static const char console_player_palette    = 'p';
 static const char console_enemy1_palette    = '@';
 
 
-static const uint32_t general_palette[] = {0x00000000, 0xff050305, 0xff41102e, 0xff35174a, 0xff3a1f6f, 0xff430e27, 0xff10106a, 0xff2e2e8a, 0xff524c67, 0xff0f6c40, 0xff3f5188, 0xff287377, 0xff8a2e36, 0xff955e50, 0xff683e98, 0xff7504d2, 0xff735221, 0xff89931a, 0xff484861, 0xff7c698c, 0xff629627, 0xff828282, 0xff0875e2, 0xff537194, 0xff2cb41d, 0xff499263, 0xff1b363b, 0xff077283, 0xff12edbe, 0xff56e6eb, 0xffa1fcfc, 0xffd6ffff};
-static const uint32_t map_palette[]     = {0x00000000, 0xfff5d6e8, 0xff3c2845, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0xffcc1e24, 0xff0909d7, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000};
-static const uint32_t player_palette[]  = {0x00000000, 0xff8a2e36, 0xff955e50};
-static const uint32_t enemy1_palette[]  = {0x00000000, 0xff10106a, 0xff2e2e8a};
+static const uint32_t palette[] = {
+    0x00000000, 0xff212121, 0xff616161, 0xffdcdcdc,
+    0xff080845, 0xff0d0d7a, 0xff1313b0, 0xff1919e6,
+    0xff084508, 0xff0d7a0d, 0xff13b013, 0xff19e619,
+    0xff450808, 0xff7a0d0d, 0xffb01313, 0xffe61919,
+    0xff084545, 0xff0d7a7a, 0xff13b0b0, 0xff19e6e6,
+    0xff082644, 0xff0d497a, 0xff136db0, 0xff1991e6,
+};
+static const uint32_t player_palette[]  = {0x00000000, 0xff212121, 0xff616161, 0xffdcdcdc};
+static const uint32_t enemy1_palette[]  = {0x00000000, 0xff10106a, 0xff2e2e8a, 0xff1010aa};
 
 
 #define copySprite(surface, x, y, _sprite, palette) copy_sprite(surface, x, y, _sprite, palette)

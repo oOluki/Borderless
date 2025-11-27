@@ -34,8 +34,8 @@
 
 #define BACKGROUND_COLOR 0xFF999999
 
-#define TILEW 8
-#define TILEH 8
+#define TILEW 16
+#define TILEH 16
 
 #define FPS 30
 #define FDT (1000 / FPS)
@@ -207,7 +207,7 @@ typedef struct Entity
     int chill;
     int targetx;
     int targety;
-    int sprite;
+    int item;
 } Entity;
 
 typedef struct Map{

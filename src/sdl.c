@@ -234,7 +234,6 @@ int getsdl_cmd(){
                 game.selected_button = i;
             }
         }
-        if(game.update) game.update(CMD_DISPLAY);
     }
         return CMD_NONE;
     case SDL_MOUSEBUTTONDOWN:

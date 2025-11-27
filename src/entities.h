@@ -133,7 +133,6 @@ int update_enemy1(Entity* self){
     }
 
     if(!(self->state & STATE_ALIVE)){
-        self->sprite = SPRITE_DEAD;
         return 0;
     }
     if(self->state & STATE_ALERTED){
@@ -167,7 +166,7 @@ int update_enemy1(Entity* self){
                 self->state &= ~STATE_ALERTED;
             }
         }
-        self->sprite = (self->state & STATE_ALERTED)? SPRITE_ALERT : SPRITE_ORIENTATION + self->orientation;
+        //self->sprite = (self->state & STATE_ALERTED)? SPRITE_ALERT : SPRITE_ORIENTATION + self->orientation;
         return 0;
     }
 
@@ -178,7 +177,7 @@ int update_enemy1(Entity* self){
             self->chill = ENEMY1_CHILL;
             self->orientation = (self->orientation + 1) % ORIENT_COUNT;
         }
-        self->sprite = SPRITE_ORIENTATION + self->orientation;
+        //self->sprite = SPRITE_ORIENTATION + self->orientation;
         return 0;
     }
 
@@ -188,7 +187,7 @@ int update_enemy1(Entity* self){
         self->targetx = game.player.x;
         self->targety = game.player.y;
         self->state |= STATE_ALERTED;
-        self->sprite = SPRITE_ALERT;
+        //self->sprite = SPRITE_ALERT;
         if((ABS(self->x - game.player.x) <= TILEW) && (ABS(self->y - game.player.y) <= TILEH)){
             game.player.state = STATE_DEAD;
         }
@@ -197,7 +196,7 @@ int update_enemy1(Entity* self){
             self->chill = ENEMY1_CHILL;
             self->orientation = (self->orientation + 1) % ORIENT_COUNT;
         }
-        self->sprite = SPRITE_ORIENTATION + self->orientation;
+        //self->sprite = SPRITE_ORIENTATION + self->orientation;
     }
 
     return 0;
