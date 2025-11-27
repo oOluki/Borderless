@@ -7,8 +7,22 @@
 #include "bfs_and_raycast.h"
 #include "renderer.h"
 
+void move_tile(int x, int y, int nx, int ny){
+    if(x == nx && y == ny) return;
+    const Tile old = get_tile(game.map, x, y);
+    const int inbounds = place_tile(&game.map, old, nx, ny);
+    if(TILE_TYPE(old) == TILETYPE_ENTITY && inbounds){
+        game.entities[TILE_DATA(old)].x = nx * TILEW;
+        game.entities[TILE_DATA(old)].y = ny * TILEH;
+    }
+    else if(TILE_TYPE(old) == TILETYPE_PLAYER && inbounds){
+        game.player.x = nx * TILEW;
+        game.player.y = ny * TILEH;
+    }
+    place_tile(&game.map, TILE_EMPTY, x, y);
+}
 
-int load_buttons(const int buttons[BUTTON_COUNT]){
+int _load_buttons(const int buttons[BUTTON_COUNT]){
     game.button_count = 0;
     for(int i = 0; i < BUTTON_COUNT && buttons[i] != BUTTON_NONE; i+=1){
         game.buttons[game.button_count++] = buttons[i];
@@ -140,16 +154,6 @@ static const char* get_button_name(int buttonid){
     }
 }
 
-static const Color* get_entity_palette(int entity){
-    switch (entity)
-    {
-    case ENTITY_PLAYER: return player_palette;
-    case ENTITY_ENEMY1: return enemy1_palette;
-    
-    default: { VERROR("Invalid entity %i", entity); } return NULL;
-    }
-}
-
 static int console_draw_tile(int tile){
     const int tile_data = TILE_DATA(tile);
     switch (TILE_TYPE(tile))
@@ -162,20 +166,20 @@ static int console_draw_tile(int tile){
         return 0;
     case TILETYPE_PLAYER:
         if(game.player.state & STATE_ALIVE){
-            printf("%c%c", console_player_palette, simple_console_font[FONT_ORIENTATION + game.player.orientation]);
+            printf("%c%c", console_player_sym, simple_console_font[FONT_ORIENTATION + game.player.orientation]);
             return 0;
         }
-        printf("%c%c", console_player_palette, simple_console_font[FONT_DEAD]);
+        printf("%c%c", console_player_sym, simple_console_font[FONT_DEAD]);
         return 0;
     case TILETYPE_ENTITY:
         if(game.entities[tile_data].state & STATE_ALIVE){
             if(game.entities[tile_data].state & STATE_ALERTED)
-                printf("%c%c", console_enemy1_palette, simple_console_font[FONT_ALERT]);
+                printf("%c%c", console_enemy1_sym, simple_console_font[FONT_ALERT]);
             else
-                printf("%c%c", console_enemy1_palette, simple_console_font[FONT_ORIENTATION + game.entities[tile_data].orientation]);
+                printf("%c%c", console_enemy1_sym, simple_console_font[FONT_ORIENTATION + game.entities[tile_data].orientation]);
             return 0;
         }
-        printf("%c%c", console_enemy1_palette, simple_console_font[FONT_DEAD]);
+        printf("%c%c", console_enemy1_sym, simple_console_font[FONT_DEAD]);
         return 0;
     default:
         VERROR("Invalid tile type %i", (int) TILE_TYPE(tile));
@@ -234,7 +238,7 @@ static int graphics_draw_tile(int tile, int x, int y){
             1, entity_sprite_size,
             entity_sprite_size, entity_sprite_size,
             x, y, (game.player.state & STATE_ALIVE)? game.player.orientation : ENTITY_SPRITE_DEAD,
-            player_palette
+            (Color[3]){0x00000000, palette[1], enitity_color[ENTITY_PLAYER]}
         );
     }
     case TILETYPE_ENTITY:{
@@ -245,7 +249,8 @@ static int graphics_draw_tile(int tile, int x, int y){
                 game.draw_canvas,
                 fontsheet, FONT_ELEMENTS_PER_ROW,
                 FONT_STRIDE, FONT_SIZE, FONT_SIZE,
-                x, y - entity_sprite_size, FONT_ALERT, enemy1_palette
+                x, y - entity_sprite_size, FONT_ALERT,
+                (Color[3]){0x00000000, enitity_color[ENTITY_ENEMY1]}
             );
         }
         return copy_sprite(
@@ -253,7 +258,7 @@ static int graphics_draw_tile(int tile, int x, int y){
             1, entity_sprite_size,
             entity_sprite_size, entity_sprite_size,
             x, y, (game.entities[tile_data].state & STATE_ALIVE)? game.entities[tile_data].orientation : ENTITY_SPRITE_DEAD,
-            enemy1_palette
+            (Color[3]){0x00000000, palette[1], enitity_color[ENTITY_ENEMY1]}
         );
     }
     default:
@@ -334,9 +339,9 @@ int level_update(int cmd){
         loadMap(map1);
         break;
     case CMD_BACK:
-        game.update = main_screen_update;
+        game.update = button_select_update;
         loadButtons(BUTTON_QUIT, BUTTON_PLAY);
-        main_screen_update(CMD_DISPLAY);
+        button_select_update(CMD_DISPLAY);
         return 0;
     case CMD_TOGGLE: // TODO
         return 0;
@@ -382,14 +387,23 @@ int level_update(int cmd){
         int dx = 0;
         int dy = 0;
         orientation_direction(game.player.orientation, &dx, &dy);
-        const Tile tile = get_tile(game.map, game.player.x / TILEW + dx, game.player.y / TILEH + dy);
+        const int px = game.player.x / TILEW;
+        const int py = game.player.y / TILEH;
+        const Tile tile = get_tile(game.map, px + dx, py + dy);
         if(tile == TILE_EMPTY){
-            move_tile(game.player.x / TILEW, game.player.y / TILEH, game.player.x / TILEW + dx, game.player.y / TILEH + dy);
-            game.player.x += dx * TILEW;
-            game.player.y += dy * TILEH;
+            move_tile(px, py, px + dx, py + dy);
         }
         else if(TILE_TYPE(tile) == TILETYPE_ENTITY){
-            game.entities[TILE_DATA(tile)].state = STATE_DEAD;
+            if(game.entities[TILE_DATA(tile)].state & STATE_ALIVE){
+                game.entities[TILE_DATA(tile)].state = STATE_DEAD;
+            }
+            else{
+                const Tile t = get_tile(game.map, px + 2 * dx, py + 2 * dy);
+                if(t == TILE_EMPTY){
+                    move_tile(px + dx, py + dy, px + 2 * dx, py + 2 * dy);
+                    move_tile(px, py, px + dx, py + dy);
+                }
+            }
         }
     }
         break;
@@ -403,14 +417,17 @@ int level_update(int cmd){
         int dx = 0;
         int dy = 0;
         orientation_direction(game.player.orientation, &dx, &dy);
-        const Tile tile = get_tile(game.map, game.player.x / TILEW - dx, game.player.y / TILEH - dy);
+        const int px = game.player.x / TILEW;
+        const int py = game.player.y / TILEH;
+        const Tile tile = get_tile(game.map, px - dx, py - dy);
         if(tile == TILE_EMPTY){
-            move_tile(game.player.x / TILEW, game.player.y / TILEH, game.player.x / TILEW - dx, game.player.y / TILEH - dy);
-            game.player.x -= dx * TILEW;
-            game.player.y -= dy * TILEH;
-        }
-        else if(TILE_TYPE(tile) == TILETYPE_ENTITY){
-            game.entities[TILE_DATA(tile)].state = STATE_DEAD;
+            move_tile(px, py, px - dx, py - dy);
+            if(game.player.state & STATE_CARRING){
+                const Tile t = get_tile(game.map, px + dx, py + dy);
+                if(t != TILE_EMPTY){
+                    move_tile(px + dx, py + dy, px, py);
+                }
+            }
         }
     }
         break;
@@ -440,7 +457,7 @@ int level_update(int cmd){
     return 0;
 }
 
-int main_screen_update(int cmd){
+int button_select_update(int cmd){
 
     switch(cmd)
     {
@@ -486,8 +503,8 @@ int game_init(Pixel* draw_canvas_pixels, int draw_canvas_w, int draw_canvas_h){
     game.camera.x = 0;
     game.camera.y = 0;
 
-    if(game.camera.w <= 0) game.camera.w = 32 * TILEW;
-    if(game.camera.h <= 0) game.camera.h = 24 * TILEH;
+    if(game.camera.w <= 0) game.camera.w = 24 * TILEW;
+    if(game.camera.h <= 0) game.camera.h = 18 * TILEH;
 
     game.mouse  = (Rect){.x = 0, .y = 0, .w = TILEW / 4 , .h = TILEH / 4 };
 

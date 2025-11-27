@@ -104,7 +104,7 @@ int getascii_cmd(){
             return CMD_NONE;
         
         default:
-            VERROR("no signal for '%c', enter h for little help message", c);
+            VERROR("no signal for %u '%c', enter h for little help message", c, c);
             return CMD_NONE;
         }
     }
@@ -113,7 +113,7 @@ int getascii_cmd(){
     const int cmd = get_char_cmd(c);
 
     if(cmd == CMD_ERROR){
-        VERROR("no cmd for char '%c'\n", c);
+        VERROR("no cmd for char %u '%c'\n", c, c);
         return CMD_NONE;
     }
 

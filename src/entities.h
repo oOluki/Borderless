@@ -72,10 +72,6 @@ int is_target_visible_from(const Map map, int targetx, int targety, int fromx, i
     return !(r < max_distance) || TILE_TYPE(hittile) == TILETYPE_PLAYER;
 }
 
-static inline void move_tile(int x, int y, int nx, int ny){
-    game.map.map[ny * game.map.w + nx] =  game.map.map[y * game.map.w + x];
-    game.map.map[y * game.map.w + x] = TILE_EMPTY;
-}
 
 // \returns whether it could move self or not
 int move_towards_visible(Entity* self, int targetx, int targety){
@@ -86,7 +82,7 @@ int move_towards_visible(Entity* self, int targetx, int targety){
             if(!get_tile(game.map, (self->x + dx) / TILEW, self->y / TILEH)){
                 if(is_target_visible_from(game.map, targetx, targety, self->x + dx, self->y, -1.0f)){
                     move_tile(self->x / TILEW, self->y / TILEH, (self->x + dx) / TILEW, self->y / TILEH);
-                    self->x += dx;
+                    self->orientation = (dx > 0)? ORIENT_RIGHT : ORIENT_LEFT;
                     return 1;
                 }
             }
@@ -96,7 +92,7 @@ int move_towards_visible(Entity* self, int targetx, int targety){
             if(!get_tile(game.map, self->x / TILEW, (self->y + dy) / TILEH)){
                 if(is_target_visible_from(game.map, targetx, targety, self->x, self->y + dy, -1.0f)){
                     move_tile(self->x / TILEW, self->y / TILEH, self->x / TILEW, (self->y + dy) / TILEH);
-                    self->y += dy;
+                    self->orientation = (dy > 0)? ORIENT_DOWN : ORIENT_UP;
                     return 1;
                 }
             } 
@@ -108,7 +104,7 @@ int move_towards_visible(Entity* self, int targetx, int targety){
             if(!get_tile(game.map, self->x / TILEW, (self->y + dy) / TILEH)){
                 if(is_target_visible_from(game.map, targetx, targety, self->x, self->y + dy, -1.0f)){
                     move_tile(self->x / TILEW, self->y / TILEH, self->x / TILEW, (self->y + dy) / TILEH);
-                    self->y += dy;
+                    self->orientation = (dy > 0)? ORIENT_DOWN : ORIENT_UP;
                     return 1;
                 }
             } 
@@ -118,7 +114,7 @@ int move_towards_visible(Entity* self, int targetx, int targety){
             if(!get_tile(game.map, (self->x + dx) / TILEW, self->y / TILEH)){
                 if(is_target_visible_from(game.map, targetx, targety, self->x + dx, self->y, -1.0f)){
                     move_tile(self->x / TILEW, self->y / TILEH, (self->x + dx) / TILEW, self->y / TILEH);
-                    self->x += dx;
+                    self->orientation = (dx > 0)? ORIENT_RIGHT : ORIENT_LEFT;
                     return 1;
                 }
             }
@@ -128,13 +124,15 @@ int move_towards_visible(Entity* self, int targetx, int targety){
 }
 
 int update_enemy1(Entity* self){
-    if(!collide_rect(game.camera, (Rect){self->x, self->y, TILEW, TILEH})){
-        return 0;
-    }
 
     if(!(self->state & STATE_ALIVE)){
         return 0;
     }
+
+    if(!(self->state & STATE_ALERTED) && !collide_rect(game.camera, (Rect){self->x, self->y, TILEW, TILEH})){
+        return 0;
+    }
+
     if(self->state & STATE_ALERTED){
         if((ABS(self->x - game.player.x) <= TILEW) && (ABS(self->y - game.player.y) <= TILEH)){
             game.player.state = STATE_DEAD;
@@ -154,6 +152,9 @@ int update_enemy1(Entity* self){
                 else{ // this is a special corner case, where the entity is in a corner and can see through the diagonal (even though it should not)
                     self->state &= ~STATE_ALERTED;
                 }
+            }
+            if((self->state & STATE_ALERTED) && (ABS(self->x - game.player.x) <= TILEW) && (ABS(self->y - game.player.y) <= TILEH)){
+                game.player.state = STATE_DEAD;
             }
             self->targetx = game.player.x;
             self->targety = game.player.y;

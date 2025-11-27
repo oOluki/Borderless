@@ -12,11 +12,11 @@ void draw();
 
 int level_update(int cmd);
 
-int main_screen_update(int cmd);
+int button_select_update(int cmd);
 
-int load_buttons(const int buttons[BUTTON_COUNT]);
+int _load_buttons(const int buttons[BUTTON_COUNT]);
 
-#define loadButtons(...) load_buttons((int[]){__VA_ARGS__, BUTTON_NONE})
+#define loadButtons(...) _load_buttons((int[]){__VA_ARGS__, BUTTON_NONE})
 
 int load_map(const unsigned char* src, int w, int h);
 
@@ -39,7 +39,8 @@ float Q_rsqrt(float number) {
 
 int rng(int optional_seed){
     static int seed = 0;
-    return (int) (&seed - &optional_seed) + seed++ - optional_seed;
+    seed = (int) ((&seed - &optional_seed) & (INTMAX_MAX | INTMAX_MIN)) + seed - optional_seed;
+    return seed;
 }
 
 static inline int in_bounds(const Rect rect, int x, int y){
@@ -67,8 +68,17 @@ static inline int distance2(int x1, int y1, int x2, int y2){
 }
 
 static inline Tile get_tile(const Map map, int x, int y){
-    return (x < 0 || y < 0 || x >= map.w || y >= map.h)? 0 : map.map[y * map.w + x];
+    return (x < 0 || y < 0 || x >= map.w || y >= map.h)? TILE_EMPTY : map.map[y * map.w + x];
 }
+
+static inline int place_tile(Map* map, const Tile tile, int x, int y){
+    const int inbounds = !(x < 0 || y < 0 || x >= map->w || y >= map->h);
+    if(inbounds) map->map[y * map->w + x] = tile;
+    return inbounds;
+}
+
+
+void move_tile(int x, int y, int nx, int ny);
 
 static inline int _str_len(const char* str){
     int len = 0;
@@ -118,6 +128,7 @@ static int get_char_cmd(int _char){
     case 's':   return CMD_DOWN;
     case '@':   return CMD_CHEAT_RESTART;
     case '^':   return CMD_SPECIAL_SIGNAL;
+    case EOF:
     case '\0':
     case '\n':  return CMD_FINNISHED;
     default:    return CMD_ERROR;

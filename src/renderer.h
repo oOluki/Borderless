@@ -212,8 +212,8 @@ static const char console_palette[] = {' ', 'X', '#', '\'', '\'', '\'', '\'', '\
 
 static const char console_general_palette[] = {'*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*'};
 static const char console_map_palette[]     = {' ', 'X', '#'};
-static const char console_player_palette    = 'p';
-static const char console_enemy1_palette    = '@';
+static const char console_player_sym        = 'p';
+static const char console_enemy1_sym        = '@';
 
 
 static const uint32_t palette[] = {
@@ -224,8 +224,11 @@ static const uint32_t palette[] = {
     0xff084545, 0xff0d7a7a, 0xff13b0b0, 0xff19e6e6,
     0xff082644, 0xff0d497a, 0xff136db0, 0xff1991e6,
 };
-static const uint32_t player_palette[]  = {0x00000000, 0xff212121, 0xff616161, 0xffdcdcdc};
-static const uint32_t enemy1_palette[]  = {0x00000000, 0xff10106a, 0xff2e2e8a, 0xff1010aa};
+static const uint32_t enitity_color[]   = {
+    [ENTITY_NONE]   = 0x00000000,
+    [ENTITY_PLAYER] = 0xffdcdcdc,
+    [ENTITY_ENEMY1] = 0xff1919e6
+};
 
 
 #define copySprite(surface, x, y, _sprite, palette) copy_sprite(surface, x, y, _sprite, palette)

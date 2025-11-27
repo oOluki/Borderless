@@ -257,7 +257,7 @@ int getsdl_cmd(){
         break;;
     }
 
-    if(user_data.continuos && user_data.chill > 160){
+    if(user_data.continuos && user_data.chill > 320){
         user_data.chill = 0;
         return get_cmd_from_movement(user_data.movement);
     }

@@ -120,7 +120,8 @@ enum EntityStates{
     STATE_DEAD    = 0,
     STATE_ALIVE   = 1 << 0,
     STATE_DAZZLED = 1 << 1,
-    STATE_ALERTED = 1 << 2
+    STATE_ALERTED = 1 << 2,
+    STATE_CARRING = 1 << 3
 };
 
 enum ORIENTATIONS{

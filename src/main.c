@@ -165,6 +165,10 @@ int main(int argc, char** argv){
                 case 'n':
                     draw_mode_changed = 1;
                     game.draw_mode = DRAW_MODE_NONE;
+                    init_subsystem   = initascii_subsystem;
+                    close_subsystem  = closeascii_subsystem;
+                    update_subsystem = updateascii_subsystem;
+                    get_cmd          = getascii_cmd;
                     break;
                 case 'i':
                     if(input && input != stdin){
@@ -265,7 +269,7 @@ int main(int argc, char** argv){
                 cmd = get_char_cmd(c);
             }
             if(cmd == CMD_ERROR){
-                fprintf(stderr, "[ERROR] invalid command char '%c'\n", c);
+                fprintf(stderr, "[ERROR] invalid command char %u '%c'\n", c, c);
                 break;
             }
             else if(output && cmd != CMD_NONE) fputc((int) get_cmd_char(cmd), output);
