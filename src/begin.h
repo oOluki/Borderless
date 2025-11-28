@@ -134,45 +134,22 @@ enum ORIENTATIONS{
     ORIENT_COUNT
 };
 
-enum Cmd{
-    CMD_NONE = 0,
-    
-    CMD_QUIT,
-    CMD_UPDATE,
-    CMD_DISPLAY,
-    CMD_DEBUG,
+enum Options{
+    OPTION_NONE = 0,
+    OPTION_CANCEL,
+    OPTION_QUIT,
+    OPTION_PLAY,
 
-    CMD_BACK,
-    CMD_ENTER,
-    CMD_TOGGLE,
-    CMD_MOUSECLICK,
+    OPTION_YES,
+    OPTION_NO,
 
-    CMD_UP,
-    CMD_RIGHT,
-    CMD_LEFT,
-    CMD_DOWN,
-
-    CMD_CHEAT_RESTART,
-
-    // for external user usage
-    CMD_SPECIAL_SIGNAL,
-
-    // indicates last command in command queue
-    CMD_FINNISHED,
+    OPTION_ATTACK,
+    OPTION_PUSH,
+    OPTION_GRAB,
+    OPTION_LOOT,
 
     // for counting purposes
-    CMD_COUNT,
-
-    CMD_ERROR
-};
-
-enum Buttons{
-    BUTTON_NONE = 0,
-    BUTTON_QUIT,
-    BUTTON_PLAY,
-
-    // for counting purposes
-    BUTTON_COUNT
+    OPTION_COUNT
 };
 
 typedef Color Pixel;
@@ -223,12 +200,6 @@ typedef struct Node {
     int y;
 } Node;
 
-typedef struct Task
-{
-    int taskid;
-    int data[10];
-} Task;
-
 typedef struct Ray
 {
     float x;
@@ -254,19 +225,24 @@ typedef struct Game{
 
     Entity          player;
 
-    Entity          entities[64];
+    Entity          entities[32];
     uint8_t         entity_count;
 
-    Task            tasks[64];
-    uint8_t         task_count;
-
-    int             buttons[10];
-    uint8_t         button_count;
-    uint8_t         selected_button;
+    int             options[10];
+    uint8_t         option_count;
+    uint8_t         selected_option;
 
     void*           user_data;
 
     int (*update)(int cmd);
+
+    int (*init_subsystem)();
+    int (*close_subsystem)();
+    int (*update_subsystem)();
+    int (*get_cmd)();
+
+    char            tmp_str[64];
+    int             tmp_str_size;
 
     int debug;
 } Game;

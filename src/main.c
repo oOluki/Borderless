@@ -1,15 +1,48 @@
-#include "game.c"
+///#include "input.h"
+#include "game.h"
+#include "renderer.h"
+#include "maps.h"
+#include "subsystem.h"
 
+//#include "input.h"
 
-#ifdef SUPPORT_SDL
+enum Cmd{
+    CMD_NONE = 0,
+    
+    CMD_QUIT,
+    CMD_UPDATE,
+    CMD_DISPLAY,
+    CMD_DEBUG,
 
-    #include "sdl.c"
+    CMD_BACK,
+    CMD_ENTER,
+    CMD_TOGGLE,
+    CMD_MOUSECLICK,
 
-#endif
+    CMD_UP,
+    CMD_RIGHT,
+    CMD_LEFT,
+    CMD_DOWN,
 
+    CMD_CHEAT_RESTART,
 
-#include "ascii.c"
+    // for external user usage
+    CMD_SPECIAL_SIGNAL,
 
+    // indicates last command in command queue
+    CMD_FINNISHED,
+
+    // for counting purposes
+    CMD_COUNT,
+
+    CMD_ERROR
+};
+
+char get_cmd_char(int cmd);
+
+int get_char_cmd(int _char);
+
+const char* get_cmd_str(int cmd);
 
 
 static int cmp_str(const char* str1, const char* str2, int only_compare_untill_first_null){
@@ -120,20 +153,20 @@ int main(int argc, char** argv){
         }
         else if(cmp_str(argv[i], "--use_sdl", 0)){
 #ifdef SUPPORT_SDL
-            init_subsystem   = initsdl_subsystem;
-            close_subsystem  = closesdl_subsystem;
-            update_subsystem = updatesdl_subsystem;
-            get_cmd          = getsdl_cmd;
+            game.init_subsystem   = initsdl_subsystem;
+            game.close_subsystem  = closesdl_subsystem;
+            game.update_subsystem = updatesdl_subsystem;
+            game.get_cmd          = getsdl_cmd;
 #else
             fprintf(stderr, "[ERROR] can't use '%s': no support for sdl\n", argv[i]);
             MAIN_RETURN_STATUS(1);
 #endif
         }
         else if(cmp_str(argv[i], "--use_ascii", 0)){
-            init_subsystem   = initascii_subsystem;
-            close_subsystem  = closeascii_subsystem;
-            update_subsystem = updateascii_subsystem;
-            get_cmd          = getascii_cmd;
+            game.init_subsystem   = initascii_subsystem;
+            game.close_subsystem  = closeascii_subsystem;
+            game.update_subsystem = updateascii_subsystem;
+            game.get_cmd          = getascii_cmd;
         }
         else if(argv[i][0] == '-'){
             for(int j = 1; argv[i][j]; j+=1){
@@ -141,34 +174,34 @@ int main(int argc, char** argv){
                 {
                 case 'c':
                     draw_mode_changed = 1;
-                    init_subsystem   = initascii_subsystem;
-                    close_subsystem  = closeascii_subsystem;
-                    update_subsystem = updateascii_subsystem;
-                    get_cmd          = getascii_cmd;
+                    game.init_subsystem   = initascii_subsystem;
+                    game.close_subsystem  = closeascii_subsystem;
+                    game.update_subsystem = updateascii_subsystem;
+                    game.get_cmd          = getascii_cmd;
                     game.draw_mode = DRAW_MODE_CONSOLE;
                     break;
                 case 'g':
                     draw_mode_changed = 1;
 #ifdef SUPPORT_SDL
-                    init_subsystem   = initsdl_subsystem;
-                    close_subsystem  = closesdl_subsystem;
-                    update_subsystem = updatesdl_subsystem;
-                    get_cmd          = getsdl_cmd;
+                    game.init_subsystem   = initsdl_subsystem;
+                    game.close_subsystem  = closesdl_subsystem;
+                    game.update_subsystem = updatesdl_subsystem;
+                    game.get_cmd          = getsdl_cmd;
 #else
-                    init_subsystem   = initascii_subsystem;
-                    close_subsystem  = closeascii_subsystem;
-                    update_subsystem = updateascii_subsystem;
-                    get_cmd          = getascii_cmd;
+                    game.init_subsystem   = initascii_subsystem;
+                    game.close_subsystem  = closeascii_subsystem;
+                    game.update_subsystem = updateascii_subsystem;
+                    game.get_cmd          = getascii_cmd;
 #endif
                     game.draw_mode = DRAW_MODE_GRAPHIC;
                     break;
                 case 'n':
                     draw_mode_changed = 1;
                     game.draw_mode = DRAW_MODE_NONE;
-                    init_subsystem   = initascii_subsystem;
-                    close_subsystem  = closeascii_subsystem;
-                    update_subsystem = updateascii_subsystem;
-                    get_cmd          = getascii_cmd;
+                    game.init_subsystem   = initascii_subsystem;
+                    game.close_subsystem  = closeascii_subsystem;
+                    game.update_subsystem = updateascii_subsystem;
+                    game.get_cmd          = getascii_cmd;
                     break;
                 case 'i':
                     if(input && input != stdin){
@@ -211,32 +244,32 @@ int main(int argc, char** argv){
         MAIN_RETURN_STATUS(1);
     }
 
-    if(!init_subsystem){
+    if(!game.init_subsystem){
 #ifdef SUPPORT_SDL
-        init_subsystem = initsdl_subsystem;
+        game.init_subsystem = initsdl_subsystem;
 #else
-        init_subsystem = initascii_subsystem;
+        game.init_subsystem = initascii_subsystem;
 #endif
     }
-    if(!close_subsystem){
+    if(!game.close_subsystem){
 #ifdef SUPPORT_SDL
-        close_subsystem = closesdl_subsystem;
+        game.close_subsystem = closesdl_subsystem;
 #else
-        close_subsystem = closeascii_subsystem;
+        game.close_subsystem = closeascii_subsystem;
 #endif
     }
-    if(!update_subsystem){
+    if(!game.update_subsystem){
 #ifdef SUPPORT_SDL
-        update_subsystem = updatesdl_subsystem;
+        game.update_subsystem = updatesdl_subsystem;
 #else
-        update_subsystem = updateascii_subsystem;
+        game.update_subsystem = updateascii_subsystem;
 #endif
     }
-    if(!get_cmd){
+    if(!game.get_cmd){
 #ifdef SUPPORT_SDL
-        get_cmd = getsdl_cmd;
+        game.get_cmd = getsdl_cmd;
 #else
-        get_cmd = getascii_cmd;
+        game.get_cmd = getascii_cmd;
 #endif
     }
 
@@ -244,7 +277,7 @@ int main(int argc, char** argv){
         game.draw_mode = DRAW_MODE_GRAPHIC;
     }
 
-    if(init_subsystem()){
+    if(game.init_subsystem()){
         MAIN_RETURN_STATUS(1);
     }
 
@@ -277,29 +310,29 @@ int main(int argc, char** argv){
     }
     while(game.active){
 
-        int cmd = get_cmd();
+        int cmd = game.get_cmd();
 
-        for(; cmd != CMD_FINNISHED && cmd != CMD_ERROR; cmd = get_cmd()){
+        for(; cmd != CMD_FINNISHED && cmd != CMD_ERROR; cmd = game.get_cmd()){
 
             if(output && cmd != CMD_NONE) fputc((int) get_cmd_char(cmd), output);
 
             if(game.update(cmd)) break;
         }
         if(output && cmd != CMD_NONE) fputc((int) get_cmd_char(cmd), output);
-        update_subsystem();
+        game.update_subsystem();
     }
 
     if(display_final_state) {
 	    game.draw_mode = DRAW_MODE_CONSOLE;
 	    draw();
-        update_subsystem();
+        game.update_subsystem();
     }
 
     defer:
     if(input)  fclose(input);
     if(output && output != stdout) fclose(output);
 
-    if(close_subsystem) if(close_subsystem()){
+    if(game.close_subsystem) if(game.close_subsystem()){
         return 1;
     }
 

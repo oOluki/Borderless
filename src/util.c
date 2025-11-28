@@ -1,17 +1,69 @@
-#ifndef RAYCAST_HEADER
-#define RAYCAST_HEADER
+#ifndef UTIL_C
+#define UTIL_C
 
-#include "game.h"
-#include "maps.h"
+#include "util.h"
 
-#define MAXBFSQUEUESIZE (sizeof(map1) / sizeof(map1[0]))
+#define MAXBFSQUEUESIZE MAXMAPSIZE
 
 static int  bfs_result[MAXBFSQUEUESIZE];
 static Node bfs_queue[MAXBFSQUEUESIZE];
 
 
-// performs bfs from (x, y) storing the result in bfs_result
-// \returns the index of the last node in the bfs_queue
+int _str_len(const char* str){
+    int len = 0;
+    for(; str[len]; len+=1);
+    return len;
+}
+
+int feed_str(char* output, const char* input, int max_len){
+    int i = 0;
+    for(; input[i] && i < max_len; i+=1){
+        output[i] = input[i];
+    }
+    return i;
+}
+
+int in_bounds(const Rect rect, int x, int y){
+    return (x > rect.x && x < rect.x + rect.w) && (y > rect.y && y < rect.y + rect.h);
+}
+
+int in_sbounds(const Surface surface, int x, int y){
+    return (x > -1 && x < surface.w) && (y > -1 && y < surface.h);
+}
+
+int in_mbounds(const Map map, int x, int y){
+    return (x > -1 && x < map.w) && (y > -1 && y < map.h);
+}
+
+int collide_rect(const Rect rect1, const Rect rect2){
+    if(in_bounds(rect1, rect2.x, rect2.y)) return 1;
+    if(in_bounds(rect1, rect2.x + rect2.w, rect2.y)) return 1;
+    if(in_bounds(rect1, rect2.x, rect2.y + rect2.h)) return 1;
+    if(in_bounds(rect1, rect2.x + rect2.w, rect2.y + rect2.h)) return 1;
+    return 0;
+}
+
+int distance2(int x1, int y1, int x2, int y2){
+    return (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
+}
+
+float Q_rsqrt(float number) {
+    const float x2 = number * 0.5f;
+    const float threehalfs = 1.5f;
+
+    const int i = 0x5f3759df - ((*(int*) &number) >> 1);
+
+    float f = *(float*) &i;
+
+    f = f * (threehalfs - (x2 * f * f));
+    f = f * (threehalfs - (x2 * f * f));
+    f = f * (threehalfs - (x2 * f * f));
+    f = f * (threehalfs - (x2 * f * f));
+    f = f * (threehalfs - (x2 * f * f));
+
+    return f;
+}
+
 int bfs_from(const Map map, int x, int y, int range){
 	
     const Node origin = (Node){.parent = -1, .x = x, .y = y};
@@ -55,11 +107,9 @@ int bfs_from(const Map map, int x, int y, int range){
     return qh;
 }
 
-// puts the path from (originx, originy) to (targetx, targety) in output
-// \returns thse size of the path or -1 if no path is found
+
 int find_path(int* output, int range, const Map map, int originx, int originy, int targetx, int targety){
 
-    //printf("find path from (%i, %i) -> (%i, %i)\n", originx, originy, targetx, targety);
 
     if(originx == targetx && originy == targety) return 0;
 
@@ -110,7 +160,6 @@ int find_path(int* output, int range, const Map map, int originx, int originy, i
         }
         cur = bfs_queue[++qh];
     }
-    //printf("no path found\n");
     return -1;
 }
 
@@ -124,10 +173,7 @@ Ray prepare_ray(int x, int y, int targetx, int targety){
     };
 }
 
-// performs a ray_cast step in the horizontal direction
-// \param ray a pointer to the ray, use prepare_ray to create such ray
-// \param map the map in which the ray is being casted
-// \returns wether the ray has hit a tile with visible type
+
 int ray_steph(const Map map, Ray* ray){
 
     if(ray->cos == 0){
@@ -147,10 +193,7 @@ int ray_steph(const Map map, Ray* ray){
     return get_tile(map, (int) (ray->x / TILEW) , (int) (ray->y / TILEH));;
 }
 
-// performs a ray_cast step in the vertical direction
-// \param ray a pointer to the ray, use prepare_ray to create such ray
-// \param map the map in which the ray is being casted
-// \returns wether the ray has hit a tile with visible type
+
 int ray_stepv(const Map map, Ray* ray){
 
     if(ray->sin == 0){
@@ -170,5 +213,4 @@ int ray_stepv(const Map map, Ray* ray){
     return get_tile(map, (int) (ray->x / TILEW) , (int) (ray->y / TILEH));
 }
 
-
-#endif // =====================  END OF FILE RAYCAST_HEADER ===========================
+#endif // =====================  END OF FILE UTIL_C ===========================

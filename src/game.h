@@ -3,160 +3,27 @@
 
 #include "begin.h"
 
-static int (*init_subsystem)();
-static int (*close_subsystem)();
-static int (*update_subsystem)();
-static int (*get_cmd)();
+int rng(int optional_seed);
 
 void draw();
 
 int level_update(int cmd);
 
-int button_select_update(int cmd);
+int option_select_update(int cmd);
 
-int _load_buttons(const int buttons[BUTTON_COUNT]);
+const char* get_option_str(int option);
 
-#define loadButtons(...) _load_buttons((int[]){__VA_ARGS__, BUTTON_NONE})
+int _load_options(const int* options);
 
-int load_map(const unsigned char* src, int w, int h);
+#define loadOptions(...) _load_options((int[]){__VA_ARGS__, OPTION_NONE})
 
-float Q_rsqrt(float number) {
-    const float x2 = number * 0.5f;
-    const float threehalfs = 1.5f;
+// \returns the number of options
+int interact_with(int* output, const Tile _tile);
 
-    const int i = 0x5f3759df - ((*(int*) &number) >> 1);
+int choose_option(int option, void* context, int* response);
 
-    float f = *(float*) &i;
+int game_init(Pixel* draw_canvas_pixels, int draw_canvas_w, int draw_canvas_h);
 
-    f = f * (threehalfs - (x2 * f * f));
-    f = f * (threehalfs - (x2 * f * f));
-    f = f * (threehalfs - (x2 * f * f));
-    f = f * (threehalfs - (x2 * f * f));
-    f = f * (threehalfs - (x2 * f * f));
-
-    return f;
-}
-
-int rng(int optional_seed){
-    static int seed = 0;
-    seed = (int) ((&seed - &optional_seed) & (INTMAX_MAX | INTMAX_MIN)) + seed - optional_seed;
-    return seed;
-}
-
-static inline int in_bounds(const Rect rect, int x, int y){
-    return (x > rect.x && x < rect.x + rect.w) && (y > rect.y && y < rect.y + rect.h);
-}
-
-static inline int in_sbounds(const Surface surface, int x, int y){
-    return (x > -1 && x < surface.w) && (y > -1 && y < surface.h);
-}
-
-static inline int in_mbounds(const Map map, int x, int y){
-    return (x > -1 && x < map.w) && (y > -1 && y < map.h);
-}
-
-int collide_rect(const Rect rect1, const Rect rect2){
-    if(in_bounds(rect1, rect2.x, rect2.y)) return 1;
-    if(in_bounds(rect1, rect2.x + rect2.w, rect2.y)) return 1;
-    if(in_bounds(rect1, rect2.x, rect2.y + rect2.h)) return 1;
-    if(in_bounds(rect1, rect2.x + rect2.w, rect2.y + rect2.h)) return 1;
-    return 0;
-}
-
-static inline int distance2(int x1, int y1, int x2, int y2){
-    return (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
-}
-
-static inline Tile get_tile(const Map map, int x, int y){
-    return (x < 0 || y < 0 || x >= map.w || y >= map.h)? TILE_EMPTY : map.map[y * map.w + x];
-}
-
-static inline int place_tile(Map* map, const Tile tile, int x, int y){
-    const int inbounds = !(x < 0 || y < 0 || x >= map->w || y >= map->h);
-    if(inbounds) map->map[y * map->w + x] = tile;
-    return inbounds;
-}
-
-
-void move_tile(int x, int y, int nx, int ny);
-
-static inline int _str_len(const char* str){
-    int len = 0;
-    for(; str[len]; len+=1);
-    return len;
-}
-
-static char get_cmd_char(int cmd){
-    switch (cmd)
-    {
-    case CMD_NONE:              return ' ';
-    case CMD_QUIT:              return 'q';
-    case CMD_UPDATE:            return 'u';
-    case CMD_DISPLAY:           return 'r';
-    case CMD_DEBUG:             return 'D';
-    case CMD_BACK:              return 'b';
-    case CMD_ENTER:             return 'e';
-    case CMD_TOGGLE:            return 'p';
-    case CMD_MOUSECLICK:        return 'c';
-    case CMD_UP:                return 'w';
-    case CMD_RIGHT:             return 'd';
-    case CMD_LEFT:              return 'a';
-    case CMD_DOWN:              return 's';
-    case CMD_CHEAT_RESTART:     return '@';
-    case CMD_SPECIAL_SIGNAL:    return '^';
-    case CMD_FINNISHED:         return '\n';
-    default:                    return '?';
-    }
-}
-
-static int get_char_cmd(int _char){
-    switch (_char)
-    {
-    case '\t':
-    case ' ':   return CMD_NONE;
-    case 'q':   return CMD_QUIT;
-    case 'r':   return CMD_DISPLAY;
-    case 'u':   return CMD_UPDATE;
-    case 'D':   return CMD_DEBUG;
-    case 'b':   return CMD_BACK;
-    case 'e':   return CMD_ENTER;
-    case 'p':   return CMD_TOGGLE;
-    case 'c':   return CMD_MOUSECLICK;
-    case 'w':   return CMD_UP;
-    case 'd':   return CMD_RIGHT;
-    case 'a':   return CMD_LEFT;
-    case 's':   return CMD_DOWN;
-    case '@':   return CMD_CHEAT_RESTART;
-    case '^':   return CMD_SPECIAL_SIGNAL;
-    case EOF:
-    case '\0':
-    case '\n':  return CMD_FINNISHED;
-    default:    return CMD_ERROR;
-    }
-}
-
-const char* get_cmd_str(int cmd){
-    switch (cmd)
-    {
-    case CMD_QUIT:              return "CMD_QUIT";
-    case CMD_UPDATE:            return "CMD_UPDATE";
-    case CMD_DISPLAY:           return "CMD_DISPLAY";
-    case CMD_DEBUG:             return "CMD_DEBUG";
-    case CMD_BACK:              return "CMD_BACK";
-    case CMD_ENTER:             return "CMD_ENTER";
-    case CMD_TOGGLE:            return "CMD_TOGGLE";
-    case CMD_MOUSECLICK:        return "CMD_MOUSECLICK";
-    case CMD_UP:                return "CMD_UP";
-    case CMD_RIGHT:             return "CMD_RIGHT";
-    case CMD_LEFT:              return "CMD_LEFT";
-    case CMD_DOWN:              return "CMD_DOWN";
-    case CMD_CHEAT_RESTART:     return "CMD_CHEAT_RESTART";
-    case CMD_SPECIAL_SIGNAL:    return "CMD_SPECIAL_SIGNAL";
-    case CMD_FINNISHED:         return "CMD_FINNISHED";
-    default:                    return "CMD_NONE";
-    }
-}
-
-static Game game;
+extern Game game;
 
 #endif // =====================  END OF FILE GAME_H ===========================

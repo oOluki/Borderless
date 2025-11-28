@@ -7,8 +7,9 @@ set(CMAKE_C_STANDARD 99)
 set(CMAKE_CXX_STANDARD 99)
 
 
-# Add executabled
-add_executable(${PROJECT_NAME} src/main.c)
+# Add executable
+file(GLOB SRC_FILES "src/*.c")
+add_executable(${PROJECT_NAME} ${SRC_FILES})
 add_executable(map_designer map_designer.c)
 
 if(NOT WIN32)
