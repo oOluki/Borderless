@@ -112,7 +112,7 @@ void draw_rect(Surface surface, int _x, int _y, int w, int h, Color color){
 
 int copy_sprite(
     Surface surface,
-    const char* spritesheet,
+    const unsigned char* spritesheet,
     int sprites_per_row,
     int stride,
     int spritew, int spriteh,
@@ -122,7 +122,7 @@ int copy_sprite(
 
     if(!palette) return 1;
 
-    const char* const sprite =
+    const unsigned char* const sprite =
         spritesheet +
         (_sprite % sprites_per_row) * spritew +
         ((int) (_sprite / sprites_per_row)) * spriteh * stride;
