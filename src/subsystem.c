@@ -106,7 +106,7 @@ int getascii_cmd(){
     const int cmd = get_char_cmd(c);
 
     if(cmd == CMD_ERROR){
-        VERROR("no cmd for char %u '%c'\n", c, c);
+        VERROR("no cmd for char %u '%c', enter -h for little help message\n", c, c);
         return CMD_NONE;
     }
 

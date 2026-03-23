@@ -234,34 +234,90 @@ void render_text(Surface surface, int x, int y, const char* txt, uint32_t color)
 
 
 
-static int console_draw_tile(int tile){
+static int console_draw_tile(char* output, const int output_stride, int tile){
     const int tile_data = TILE_DATA(tile);
     switch (TILE_TYPE(tile))
     {
     case TILETYPE_NONE:
-        printf("  ");
+        for(int i = 0; i < 3; i+=1)
+            for(int j = 0; j < 3; j+=1)
+                output[i * output_stride + j] = ' ';
         return 0;
     case TILETYPE_TILE:
-        printf("%c%c", console_map_palette[tile_data], console_map_palette[tile_data]);
+        for(int i = 0; i < 3; i+=1)
+            for(int j = 0; j < 3; j+=1)
+                output[i * output_stride + j] = console_map_palette[tile_data];
         return 0;
     case TILETYPE_PLAYER:
+        for(int i = 0; i < 3; i+=1)
+            for(int j = 0; j < 3; j+=1)
+                output[i * output_stride + j] = ' ';
+
         if(game.player.state & STATE_ALIVE){
-            printf("%c%c", console_player_sym, simple_console_font[FONT_ORIENTATION + game.player.orientation]);
-            return 0;
+            output[0] = (game.player.state & STATE_ALERTED)? simple_console_font[FONT_ALERT] : ' ';
         }
-        printf("%c%c", console_player_sym, simple_console_font[FONT_DEAD]);
+        else{
+            output[0] = simple_console_font[FONT_DEAD];
+        }
+        output[1 * output_stride + 1] = console_player_sym;
+        if(game.player.items & ITEM_PISTOL)
+            output[2] = 'p';
+        switch (game.player.orientation)
+        {
+        case ORIENT_UP:
+            output[0 * output_stride + 1] = simple_console_font[FONT_UP];
+            break;
+        case ORIENT_RIGHT:
+            output[1 * output_stride + 2] = simple_console_font[FONT_RIGHT];
+            break;
+        case ORIENT_DOWN:
+            output[2 * output_stride + 1] = simple_console_font[FONT_DOWN];
+            break;
+        case ORIENT_LEFT:
+            output[1 * output_stride + 0] = simple_console_font[FONT_LEFT];
+            break;
+        default:
+            output[1 * output_stride + 0] = simple_console_font[FONT_INTERROGATION];
+            break;
+        }
         return 0;
     case TILETYPE_ENTITY:
+        for(int i = 0; i < 3; i+=1)
+            for(int j = 0; j < 3; j+=1)
+                output[i * output_stride + j] = ' ';
+
         if(game.entities[tile_data].state & STATE_ALIVE){
-            if(game.entities[tile_data].state & STATE_ALERTED)
-                printf("%c%c", console_enemy1_sym, simple_console_font[FONT_ALERT]);
-            else
-                printf("%c%c", console_enemy1_sym, simple_console_font[FONT_ORIENTATION + game.entities[tile_data].orientation]);
-            return 0;
+            output[0] = (game.entities[tile_data].state & STATE_ALERTED)? simple_console_font[FONT_ALERT] : ' ';
         }
-        printf("%c%c", console_enemy1_sym, simple_console_font[FONT_DEAD]);
+        else{
+            output[0] = simple_console_font[FONT_DEAD];
+        }
+        output[1 * output_stride + 1] = console_enemy1_sym;
+        if((game.entities[tile_data].state & STATE_ALERTED) && (game.entities[tile_data].items & ITEM_PISTOL))
+            output[2] = 'p';
+        switch (game.entities[tile_data].orientation)
+        {
+        case ORIENT_UP:
+            output[0 * output_stride + 1] = simple_console_font[FONT_UP];
+            break;
+        case ORIENT_RIGHT:
+            output[1 * output_stride + 2] = simple_console_font[FONT_RIGHT];
+            break;
+        case ORIENT_DOWN:
+            output[2 * output_stride + 1] = simple_console_font[FONT_DOWN];
+            break;
+        case ORIENT_LEFT:
+            output[1 * output_stride + 0] = simple_console_font[FONT_LEFT];
+            break;
+        default:
+            output[1 * output_stride + 0] = simple_console_font[FONT_INTERROGATION];
+            break;
+        }
         return 0;
     default:
+        for(int i = 0; i < 3; i+=1)
+            for(int j = 0; j < 3; j+=1)
+                output[i * output_stride + j] = '?';
         VERROR("Invalid tile type %i", (int) TILE_TYPE(tile));
         return 1;
     }
@@ -278,24 +334,28 @@ static void console_draw_map(){
 
     printf("    ");
     for(int j = 0; j < jrange; j+=2){
-        printf("%2i  ", j);
+        printf("%3i   ", j);
     }
-
     printf("\n");
 
+    const int stride = 3 * jrange;
+
     for(int i = 0; i < irange; i+=1){
-        printf("%2i- ", i);
+        char* canvas = (char*) game.draw_canvas.pixels;
         for(int j = 0; j < jrange; j+=1){
             const Tile tile = get_tile(game.map, j + joffset, i + ioffset);
-            if(console_draw_tile(tile)){
+            if(console_draw_tile(canvas, stride, tile)){
                 VERROR("Could not draw tile %16llx", (long long) tile);
             }
+            canvas += 3;
         }
-        printf("\n");
+        printf("     %.*s\n", stride, ((char*) game.draw_canvas.pixels) + 0 * stride);
+        printf("%3i- %.*s\n", i, stride, ((char*) game.draw_canvas.pixels) + 1 * stride);
+        printf("     %.*s\n", stride, ((char*) game.draw_canvas.pixels) + 2 * stride);
     }
 
     for(int j = 1; j < jrange; j+=2){
-        printf("  %2i", j);
+        printf("        %3i", j);
     }
     printf("\n");
 }
@@ -325,6 +385,19 @@ static int graphics_draw_tile(int tile, int x, int y){
         if(TILEW > entity_sprite_size) x += (TILEW - entity_sprite_size) / 2;
         if(TILEH > entity_sprite_size) y += (TILEH - entity_sprite_size) / 2;
         if(game.entities[tile_data].state & STATE_ALERTED){
+            const int orient = game.entities[tile_data].orientation;
+            const int dx = (orient == ORIENT_RIGHT) - (orient == ORIENT_LEFT);
+            const int dy = (orient == ORIENT_DOWN)  - (orient == ORIENT_UP);
+            const int w = (orient == ORIENT_UP || orient == ORIENT_DOWN)? pistol_spritew : pistol_spriteh;
+            const int h = (orient == ORIENT_UP || orient == ORIENT_DOWN)? pistol_spriteh : pistol_spritew;
+            copy_sprite(
+                game.draw_canvas,
+                pistol_sprites + orient * pistol_spritew * pistol_spriteh,
+                1, w, w, h,
+                (dx > 0)? x + entity_sprite_size + 1 : x + dx * (w + 1),
+                (dy > 0)? y + entity_sprite_size + 1 : y + dy * (h + 1), 0,
+                (Color[3]){0x00000000, palette[1]}
+            );
             copy_sprite(
                 game.draw_canvas,
                 fontsheet, FONT_ELEMENTS_PER_ROW,

@@ -61,29 +61,27 @@ const unsigned char entity_spritesheet[] = {
 	1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 };
 
-const int pistol_spritew = 4;
-const int pistol_spriteh = 3;
-const char pistol_sprite_up[] = {
+const int pistol_spritew = 3;
+const int pistol_spriteh = 4;
+const unsigned char pistol_sprites[] = {
 	1, 0, 0,
 	1, 0, 0,
 	1, 1, 0,
 	1, 1, 1,
-};
-const char pistol_sprite_right[] = {
+
 	1, 1, 1, 1,
 	1, 1, 0, 0,
 	1, 0, 0, 0,
-};
-const char pistol_sprite_down[] = {
+
 	1, 1, 1,
 	0, 1, 1,
 	0, 0, 1,
 	0, 0, 1,
-};
-const char pistol_sprite_left[] = {
+
 	0, 0, 0, 1,
 	0, 0, 1, 1,
 	1, 1, 1, 1,
+
 };
 
 #endif // =====================  END OF FILE SPRITES_C ===========================

@@ -22,6 +22,7 @@
 #define MIN(X, Y) (((X) < (Y))? (X) :  (Y))
 #define MAX(X, Y) (((X) > (Y))? (X) :  (Y))
 #define ABS(X)    (((X) > 0)  ? (X) : -(X))
+#define SQR(X)    ((X) * (X))
 
 // array length
 #define ARLEN(ARRAY) (sizeof(ARRAY) / sizeof(ARRAY[0]))
@@ -78,13 +79,10 @@ enum Tiles{
     TILE_PLAYER_FACE_DOWN,
     TILE_PLAYER_FACE_LEFT,
 
-    TILE_ENEMY1_FACE_UP,
-    TILE_ENEMY1_FACE_RIGHT,
-    TILE_ENEMY1_FACE_DOWN,
-    TILE_ENEMY1_FACE_LEFT,
+    TILE_FIRST_ENTITY,
 
     // for counting purposes
-    TILE_COUNT = 32
+    TILE_COUNT
 };
 
 // an id number placed in the first 3 bits of a tile to id its type on the fly
@@ -111,6 +109,7 @@ enum Entities{
     ENTITY_NONE = 0,
     ENTITY_PLAYER,
     ENTITY_ENEMY1,
+    ENTITY_ENEMY2,
 
     // for counting purposes
     ENTITY_COUNT,
@@ -121,7 +120,8 @@ enum EntityStates{
     STATE_ALIVE   = 1 << 0,
     STATE_DAZZLED = 1 << 1,
     STATE_ALERTED = 1 << 2,
-    STATE_CARRING = 1 << 3
+    STATE_CARRING = 1 << 3,
+    STATE_GRABBED = 1 << 4
 };
 
 enum ORIENTATIONS{
@@ -146,10 +146,23 @@ enum Options{
     OPTION_ATTACK,
     OPTION_PUSH,
     OPTION_GRAB,
+    OPTION_RELEASE,
     OPTION_LOOT,
 
     // for counting purposes
     OPTION_COUNT
+};
+
+enum Items{
+    ITEM_NONE   = 0,
+
+    ITEM_PISTOL = 1 << 0,
+
+    ITEM_AFTER_LAST_WEAPON,
+    ITEM_AFTER_LAST = ITEM_AFTER_LAST_WEAPON,
+    
+    ITEM_FULL_WEAPON_MASK = 2 * (ITEM_AFTER_LAST_WEAPON - 1) - 1,
+    ITEM_FULL_MASK = 2 * (ITEM_AFTER_LAST - 1) - 1
 };
 
 typedef Color Pixel;
@@ -185,7 +198,8 @@ typedef struct Entity
     int chill;
     int targetx;
     int targety;
-    int item;
+    int weapon;
+    int items;
 } Entity;
 
 typedef struct Map{

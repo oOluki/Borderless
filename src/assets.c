@@ -5,6 +5,7 @@
 #include "assets/font.c"
 #include "assets/sprites.c"
 #include "assets/map1.c"
+#include "assets/testmap.c"
 
 int get_sprite_from_char(char c){
 	switch (c)

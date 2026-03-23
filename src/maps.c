@@ -36,16 +36,16 @@ void move_tile(int x, int y, int nx, int ny){
 }
 
 
-static inline int load_entity(int type, int x, int y, int state, int orientation, int item){
+static inline int load_entity(int type, int x, int y, int state, int orientation, int items){
     if(game.entity_count + 1 >= ARLEN(game.entities)){
         ERROR("could not load entity, entity overflow\n");
         return 1;
     }
-    game.entities[game.entity_count++] = (Entity){.type = type, .x = x, .y = y, .state = state, .orientation = orientation, .item = item};
+    game.entities[game.entity_count++] = (Entity){.type = type, .x = x, .y = y, .state = state, .orientation = orientation, .items = items};
     return 0;
 }
 
-static Tile load_tile_component(int tile, int map_x, int map_y){
+static Tile load_tile_component(int tile, int map_x, int map_y, const unsigned char* src){
 
     switch (tile)
     {
@@ -57,37 +57,31 @@ static Tile load_tile_component(int tile, int map_x, int map_y){
         return MK_TILE(TILETYPE_TILE, TILE_SWALL);
 
     case TILE_PLAYER_FACE_UP:
-        game.player = (Entity){.type = ENTITY_PLAYER, .x = map_x * TILEW, .y = map_y * TILEH, .orientation = ORIENT_UP   , .state = STATE_ALIVE};
-        return MK_TILE(TILETYPE_PLAYER, 0);
     case TILE_PLAYER_FACE_RIGHT:
-        game.player = (Entity){.type = ENTITY_PLAYER, .x = map_x * TILEW, .y = map_y * TILEH, .orientation = ORIENT_RIGHT, .state = STATE_ALIVE};
-        return MK_TILE(TILETYPE_PLAYER, 0);
     case TILE_PLAYER_FACE_DOWN:
-        game.player = (Entity){.type = ENTITY_PLAYER, .x = map_x * TILEW, .y = map_y * TILEH, .orientation = ORIENT_DOWN , .state = STATE_ALIVE};
-        return MK_TILE(TILETYPE_PLAYER, 0);
     case TILE_PLAYER_FACE_LEFT:
-        game.player = (Entity){.type = ENTITY_PLAYER, .x = map_x * TILEW, .y = map_y * TILEH, .orientation = ORIENT_LEFT , .state = STATE_ALIVE};
+        game.player = (Entity){
+            .type = ENTITY_PLAYER,
+            .x = map_x * TILEW,
+            .y = map_y * TILEH,
+            .orientation = tile - TILE_PLAYER_FACE_UP,
+            .state = STATE_ALIVE
+        };
         return MK_TILE(TILETYPE_PLAYER, 0);
 
-    case TILE_ENEMY1_FACE_UP:
-        if(load_entity(ENTITY_ENEMY1, map_x * TILEW, map_y * TILEH, STATE_ALIVE, ORIENT_UP   , 0)){
+    case TILE_FIRST_ENTITY:
+        if(game.entity_count + 1 >= ARLEN(game.entities)){
+            ERROR("could not load entity, entity overflow\n");
             return MK_TILE(TILETYPE_ERROR, 0);
         }
-        return MK_TILE(TILETYPE_ENTITY, game.entity_count - 1);
-    case TILE_ENEMY1_FACE_RIGHT:
-        if(load_entity(ENTITY_ENEMY1, map_x * TILEW, map_y * TILEH, STATE_ALIVE, ORIENT_RIGHT, 0)){
-            return MK_TILE(TILETYPE_ERROR, 0);
-        }
-        return MK_TILE(TILETYPE_ENTITY, game.entity_count - 1);
-    case TILE_ENEMY1_FACE_DOWN:
-        if(load_entity(ENTITY_ENEMY1, map_x * TILEW, map_y * TILEH, STATE_ALIVE, ORIENT_DOWN , 0)){
-            return MK_TILE(TILETYPE_ERROR, 0);
-        }
-        return MK_TILE(TILETYPE_ENTITY, game.entity_count - 1);
-    case TILE_ENEMY1_FACE_LEFT:
-        if(load_entity(ENTITY_ENEMY1, map_x * TILEW, map_y * TILEH, STATE_ALIVE, ORIENT_LEFT , 0)){
-            return MK_TILE(TILETYPE_ERROR, 0);
-        }
+        game.entities[game.entity_count++] = (Entity){
+            .type = ENTITY_ENEMY1,
+            .x = map_x * TILEW,
+            .y = map_y * TILEH,
+            .orientation = src[map_x * map_y + tile - TILE_FIRST_ENTITY] >> 6,
+            .state = STATE_ALIVE,
+            .items = src[map_x * map_y + tile - TILE_FIRST_ENTITY] & ((1 << 6) - 1)
+        };
         return MK_TILE(TILETYPE_ENTITY, game.entity_count - 1);
     
     default:
@@ -121,7 +115,7 @@ int load_map(const unsigned char* src, int w, int h){
 
     for(int i = 0; i < h; i+=1){
         for(int j = 0; j < w; j+=1){
-            dest->map[i * dest->w + j] = load_tile_component(src[i * w + j], j, i);
+            dest->map[i * dest->w + j] = load_tile_component(src[i * w + j], j, i, src);
         }
     }
     return 0;

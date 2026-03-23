@@ -143,18 +143,21 @@ int update_entity(Entity* self){
                 const int dy = (self->y < game.player.y)? TILEH : -TILEH;
                 if(!get_tile(game.map, (self->x + dx) / TILEW, self->y / TILEH)){
                     move_tile(self->x / TILEW, self->y / TILEH, (self->x + dx) / TILEW, self->y / TILEH);
-                    self->x += dx;
+                    //self->x += dx;
                 }
                 else if(!get_tile(game.map, self->x / TILEW, (self->y + dy) / TILEH)){
                     move_tile(self->x / TILEW, self->y / TILEH, self->x / TILEW, (self->y + dy) / TILEH);
-                    self->y += dy;
+                    //self->y += dy;
                 }
                 else{ // this is a special corner case, where the entity is in a corner and can see through the diagonal (even though it should not)
                     self->state &= ~STATE_ALERTED;
+                    self->chill = ENEMY1_CHILL;
                 }
             }
-            if((self->state & STATE_ALERTED) && (ABS(self->x - game.player.x) <= TILEW) && (ABS(self->y - game.player.y) <= TILEH)){
-                game.player.state = STATE_DEAD;
+            if(self->state & STATE_ALERTED){
+                const int d2 = distance2(game.player.x / TILEW, game.player.y / TILEH, self->x / TILEW, self->y / TILEH);
+                if((d2 < 2) || (d2 <= 9 && self->items & ITEM_PISTOL))
+                    game.player.state = STATE_DEAD;
             }
             self->targetx = game.player.x;
             self->targety = game.player.y;

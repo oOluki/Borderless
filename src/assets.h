@@ -65,6 +65,14 @@ extern const int map1w;
 extern const int map1h;
 extern const unsigned char map1[];
 
+extern const int testmapw;
+extern const int testmaph;
+extern const unsigned char testmap[];
+
+extern const int pistol_spritew;
+extern const int pistol_spriteh;
+extern const unsigned char pistol_sprites[];
+
 int get_sprite_from_char(char c);
 
 char get_char_from_sprite(int sprite);

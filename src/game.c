@@ -129,12 +129,28 @@ int level_update(int cmd){
     }
         break;
     case CMD_RIGHT:
+        if(game.player.state & STATE_CARRING){
+            int dx = 0;
+            int dy = 0;
+            orientation_direction(game.player.orientation, &dx, &dy);
+            const Tile tile = get_tile(game.map, game.player.x / TILEW + dx, game.player.y / TILEH + dy);
+            if(TILE_TYPE(tile) == TILETYPE_ENTITY)
+                game.entities[TILE_DATA(tile)].state &= ~STATE_GRABBED;
+            game.player.state &= ~STATE_CARRING;
+        }
         game.player.orientation = (game.player.orientation + 1) % ORIENT_COUNT;
-        game.player.state &= ~STATE_CARRING;
         break;
     case CMD_LEFT:
+        if(game.player.state & STATE_CARRING){
+            int dx = 0;
+            int dy = 0;
+            orientation_direction(game.player.orientation, &dx, &dy);
+            const Tile tile = get_tile(game.map, game.player.x / TILEW + dx, game.player.y / TILEH + dy);
+            if(TILE_TYPE(tile) == TILETYPE_ENTITY)
+                game.entities[TILE_DATA(tile)].state &= ~STATE_GRABBED;
+            game.player.state &= ~STATE_CARRING;
+        }
         game.player.orientation = (game.player.orientation + ORIENT_COUNT - 1) % ORIENT_COUNT;
-        game.player.state &= ~STATE_CARRING;
         break;
     case CMD_DOWN:{
         int dx = 0;
@@ -214,7 +230,7 @@ int option_select_update(int cmd){
                 game.update = level_update;
                 game.option_count = 0;
                 game.tmp_str_size = 0;
-                level_update(CMD_DISPLAY);
+                level_update(CMD_UPDATE);
                 return 0;
             }
         }
@@ -236,9 +252,10 @@ int interact_with(int* output, const Tile _tile){
     switch (TILE_TYPE(_tile))
     {
     case TILETYPE_ENTITY:
-        output[count++] = OPTION_ATTACK;
+        if(game.entities[tile].state & STATE_ALIVE)
+            output[count++] = OPTION_ATTACK;
         output[count++] = OPTION_PUSH;
-        output[count++] = OPTION_GRAB;
+        output[count++] = (game.entities[tile].state & STATE_GRABBED)? OPTION_RELEASE : OPTION_GRAB;
         output[count++] = OPTION_LOOT;
         break;
     
@@ -290,38 +307,52 @@ int choose_option(int option, void* context, int* response){
     }
         return 1;
     case OPTION_PUSH:{
-        const Entity* const entity = (Entity*) context;
+        Entity* const entity = (Entity*) context;
         int dx;
         int dy;
         orientation_direction(entity->orientation, &dx, &dy);
         const int px = entity->x / TILEW;
         const int py = entity->y / TILEH;
         const Tile tile = get_tile(game.map, px + dx, py + dy);
-        if(TILE_TYPE(tile) != TILETYPE_ENTITY)
-            return 1;
-        if(get_tile(game.map, px + 2 * dx, py + 2 * dy) == TILE_EMPTY){
-            move_tile(px + dx, py + dy, px + 2 * dx, py + 2 * dy);
+        if(TILE_TYPE(tile) == TILETYPE_ENTITY){
+            if(get_tile(game.map, px + 2 * dx, py + 2 * dy) == TILE_EMPTY){
+                move_tile(px + dx, py + dy, px + 2 * dx, py + 2 * dy);
+            }
+            game.entities[TILE_DATA(tile)].state &= ~STATE_GRABBED;
+            entity->state &= ~STATE_CARRING;
+            if(game.entities[TILE_DATA(tile)].state & STATE_ALIVE)
+                game.entities[TILE_DATA(tile)].state |= STATE_ALERTED;
         }
-        game.entities[TILE_DATA(tile)].state |= STATE_ALERTED;
     }
         return 1;
     case OPTION_GRAB:{
         Entity* const entity = (Entity*) context;
-        if(entity->state & STATE_CARRING){
-            entity->state &= ~STATE_CARRING;
-            return 1;
-        }
         int dx;
         int dy;
         orientation_direction(entity->orientation, &dx, &dy);
         const int px = entity->x / TILEW;
         const int py = entity->y / TILEH;
         const Tile tile = get_tile(game.map, px + dx, py + dy);
-        if(TILE_TYPE(tile) != TILETYPE_ENTITY)
-            return 1;
+        if(TILE_TYPE(tile) == TILETYPE_ENTITY){
+            game.entities[TILE_DATA(tile)].state |= STATE_GRABBED;
+            if(game.entities[TILE_DATA(tile)].state & STATE_ALIVE)
+                game.entities[TILE_DATA(tile)].state |= STATE_ALERTED;
+        }
         entity->state |= STATE_CARRING;
-        if(game.entities[TILE_DATA(tile)].state & STATE_ALIVE)
-            game.entities[TILE_DATA(tile)].state |= STATE_ALERTED;
+    }
+        return 1;
+    case OPTION_RELEASE:{
+        Entity* const entity = (Entity*) context;
+        int dx;
+        int dy;
+        orientation_direction(entity->orientation, &dx, &dy);
+        const int px = entity->x / TILEW;
+        const int py = entity->y / TILEH;
+        const Tile tile = get_tile(game.map, px + dx, py + dy);
+        if(TILE_TYPE(tile) == TILETYPE_ENTITY){
+            game.entities[TILE_DATA(tile)].state &= ~STATE_GRABBED;
+        }
+        entity->state &= ~STATE_CARRING;
     }
         return 1;
     case OPTION_LOOT:{
@@ -334,10 +365,15 @@ int choose_option(int option, void* context, int* response){
         const Tile tile = get_tile(game.map, px + dx, py + dy);
         if(TILE_TYPE(tile) != TILETYPE_ENTITY)
             return 1;
-        if(game.entities[TILE_DATA(tile)].state & STATE_ALIVE)
+        if(game.entities[TILE_DATA(tile)].state & STATE_ALIVE){
+            game.entities[TILE_DATA(tile)].state |= STATE_ALERTED;
+            const int robbed_item = rng(0) & ITEM_FULL_MASK;
+            game.entities[TILE_DATA(tile)].items &= ~robbed_item;
+            entity->items |= robbed_item;
             return 1;
-        if(game.entities[TILE_DATA(tile)].item)
-            entity->item = game.entities[TILE_DATA(tile)].item;
+        }
+        entity->items |= game.entities[TILE_DATA(tile)].items;
+        game.entities[TILE_DATA(tile)].items = ITEM_NONE;
     }
         return 1;
 
@@ -361,7 +397,8 @@ const char* get_option_str(int option){
 
     case OPTION_ATTACK:     return "ATTACK";
     case OPTION_PUSH:       return "PUSH";
-    case OPTION_GRAB:       return "GRAB OR RELEASE";
+    case OPTION_GRAB:       return "GRAB";
+    case OPTION_RELEASE:    return "RELEASE";
     case OPTION_LOOT:       return "LOOT";
     }
 }
@@ -383,8 +420,8 @@ int game_init(Pixel* draw_canvas_pixels, int draw_canvas_w, int draw_canvas_h){
 
     game.mouse  = (Rect){.x = 0, .y = 0, .w = TILEW / 4 , .h = TILEH / 4 };
 
-    load_map(map1, map1w, map1h);
-
+    //load_map(map1, map1w, map1h);
+    loadMap(map1);
     game.active = 1;
 
     game.update = level_update;
