@@ -24,6 +24,36 @@ static int getascii_color_index(Color color){
     return (brightness <= 255)? (brightness * (ARLEN(ascii_map) - 1)) / 255 : (ARLEN(ascii_map) - 1);
 }
 
+#if defined(__linux__) || defined(__APPLE__)
+
+#include <unistd.h>
+#include <termios.h>
+
+static int read_key() {
+    struct termios oldt, newt;
+    tcgetattr(STDIN_FILENO, &oldt);
+    newt = oldt;
+    newt.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+
+    const int c = fgetc(stdin);
+
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+    return c;
+}
+
+#elif defined(_WIN32)
+
+#include <conio.h>
+
+#define read_key() _getch()
+
+#else
+
+#define read_key() fgetc(stdin)
+
+#endif // read_key definition
+
 int initascii_subsystem() {
 
     return 0;
@@ -46,6 +76,7 @@ int updateascii_subsystem(){
             }
             putchar('\n');
         }
+        fflush(stdout);
     }
 
     printf(">>> ");
@@ -55,10 +86,13 @@ int updateascii_subsystem(){
 
 int getascii_cmd(){
 
-    int c = fgetc(stdin);
+    int c = read_key();
 
-    if(c == '-'){
-        c = fgetc(stdin);
+    if(c == ':' || c == 'h'){
+        fputc(c, stdout);
+        fflush(stdout);
+        c = read_key();
+        fprintf(stdout, "\r");
         switch (c)
         {
         case 'l':
@@ -89,10 +123,10 @@ int getascii_cmd(){
             }
             printf(
                 "characters preffixed with - are signals, valid signals are\n"
-                "\t-l: clears the whole display\n"
-                "\t-d: toggles the display mode\n"
-                "\t-m: toggles the subsystem mode\n"
-                "\t-h: shows this help message\n"
+                "\t:l: clears the whole display\n"
+                "\t:d: toggles the display mode\n"
+                "\t:m: toggles the subsystem mode\n"
+                "\t:h: shows this help message\n"
             );
             return CMD_NONE;
         
@@ -106,7 +140,7 @@ int getascii_cmd(){
     const int cmd = get_char_cmd(c);
 
     if(cmd == CMD_ERROR){
-        VERROR("no cmd for char %u '%c', enter -h for little help message\n", c, c);
+        VERROR("no cmd for char %u '%c', enter :h for little help message\n", c, c);
         return CMD_NONE;
     }
 

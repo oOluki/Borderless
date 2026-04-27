@@ -227,11 +227,12 @@ int option_select_update(int cmd){
     case CMD_ENTER:
         if(game.selected_option >= 0 && game.selected_option < game.option_count){
             if(choose_option(game.options[game.selected_option], &game.player, NULL)){
+                if(0 == game.active)
+                    return 1;
                 game.update = level_update;
                 game.option_count = 0;
                 game.tmp_str_size = 0;
-                level_update(CMD_UPDATE);
-                return 0;
+                return level_update(CMD_UPDATE);
             }
         }
         return 0;
