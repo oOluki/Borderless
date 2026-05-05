@@ -312,17 +312,26 @@ int main(int argc, char** argv){
             else if(output && cmd != CMD_NONE) fputc((int) get_cmd_char(cmd), output);
         }
     }
-    while(game.active){
+    if(input){
+        fclose(input);
+        input = NULL;
+    }
+    for(int last_cmd = CMD_NONE; game.active; ){
 
         int cmd = game.get_cmd();
 
         for(; cmd != CMD_FINNISHED && cmd != CMD_ERROR; cmd = game.get_cmd()){
 
-            if(output && cmd != CMD_NONE) fputc((int) get_cmd_char(cmd), output);
+            if(output && cmd != CMD_NONE && (cmd != CMD_FINNISHED || last_cmd != CMD_FINNISHED))
+                fputc((int) get_cmd_char(cmd), output);
+
+            last_cmd = cmd;
 
             if(game.update(cmd)) break;
         }
-        if(output && cmd != CMD_NONE) fputc((int) get_cmd_char(cmd), output);
+        if(output && cmd != CMD_NONE && (cmd != CMD_FINNISHED || last_cmd != CMD_FINNISHED))
+            fputc((int) get_cmd_char(cmd), output);
+
         game.update_subsystem();
     }
 

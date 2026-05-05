@@ -20,6 +20,8 @@ int get_sprite_from_char(char c){
 	case ']':	return FONT_CLOSEPAREN;
 	case '%':	return FONT_PERCENT;
 	case ' ':	return FONT_SPACE;
+	case '-': 	return FONT_DASH;
+	case '_': 	return FONT_UNDERLINE;
 	default:
 		if(c >= '0' && c <= '9') return (int) (FONT_0 + c - '0');
 		if(c >= 'a' && c <= 'z') return (int) (FONT_a + c - 'a');
@@ -43,6 +45,8 @@ char get_char_from_sprite(int sprite){
 	case FONT_CLOSEPAREN:	 	return ']';
 	case FONT_PERCENT:	 		return '%';
 	case FONT_SPACE:	 		return ' ';
+	case FONT_DASH:				return '-';
+	case FONT_UNDERLINE:		return '_';
 	default:
 		return (sprite >= FONT_0 && sprite <= FONT_9)? (char) ('0' + sprite - FONT_0) : 
 		((sprite >= FONT_a && sprite <= FONT_z)? (char) ('a' + sprite - FONT_a) : '\0');

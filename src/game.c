@@ -20,10 +20,24 @@ int _load_options(const int* options){
     return 0;
 }
 
-int rng(int optional_seed){
-    static int seed = 0;
-    seed = (int) ((&seed - &optional_seed) & (INTMAX_MAX | INTMAX_MIN)) + seed - optional_seed;
-    return seed;
+int rng(){
+    static unsigned char call = 0;
+    static const int rng_values[] = {
+        90, 77, 13, 69, 57,
+        81, 59, 19, 69, 52,
+        82, 84, 76, 72, 97,
+        47, 60, 98, 96, 00,
+        68, 34, 89, 86, 19,
+        54, 14, 56, 13, 52,
+        49, 10, 78, 20, 100,
+        62, 94, 15, 32, 40,
+        06, 43, 18, 02, 74,
+        16, 89, 38, 48, 63,
+    };
+    
+    const unsigned int _call = call;
+    call = (call + 1) % ARLEN(rng_values);
+    return rng_values[_call];
 }
 
 const char* get_weapon_str(int weapon){
@@ -60,7 +74,7 @@ int level_update(int cmd){
         break;
     case CMD_BACK:
         game.update = option_select_update;
-        loadOptions(OPTION_QUIT, OPTION_PLAY, OPTION_LOAD_MAP, OPTION_CANCEL);
+        loadOptions(OPTION_QUIT, OPTION_PLAY, OPTION_LOAD_MAP, OPTION_TEST, OPTION_CANCEL);
         option_select_update(CMD_DISPLAY);
         return 0;
     case CMD_ENTER:{
@@ -241,7 +255,7 @@ int option_select_update(int cmd){
     case CMD_MOUSECLICK:
     case CMD_ENTER:
         if(game.selected_option >= 0 && game.selected_option < game.option_count){
-            if(choose_option(game.options[game.selected_option], &game.player, OPTION_NONE)){
+            if(choose_option(game.options[game.selected_option], &game.player)){
                 if(0 == game.active)
                     return 1;
                 game.update = level_update;
@@ -337,7 +351,7 @@ int interact_with(int* output, const Tile _tile){
     return count;
 }
 
-int choose_option(int OPTION, void* context, int last_option){
+int choose_option(int OPTION, void* context){
     switch (OPTION)
     {
     case OPTION_NONE:
@@ -355,8 +369,7 @@ int choose_option(int OPTION, void* context, int last_option){
         return 1;
     
     case OPTION_YES:
-        DEBUG_ASSERT(last_option != OPTION_YES);
-        return choose_option(last_option, context, OPTION_YES);
+        return choose_option(game.option_callback, context);
     case OPTION_NO:
         return 1;
 
@@ -439,18 +452,24 @@ int choose_option(int OPTION, void* context, int last_option){
             return 1;
         }
         if(entity->id == ENTITY_PLAYER && entity->weapon != WEAPON_NONE && other->weapon != WEAPON_NONE && other->weapon != entity->weapon){
-            if(last_option == OPTION_YES){
+            if(game.option_callback){
                 entity->weapon = other->weapon;
                 other->weapon = WEAPON_NONE;
+                game.option_callback = OPTION_NONE;
             }
             else{
-                feed_str(
-                    game.tmp_str, game.tmp_str_size, "want to swap your %s for %s?",
+                game.tmp_str_size = feed_str(
+                    game.tmp_str, ARLEN(game.tmp_str), "want to swap your %s for %s?",
                     get_weapon_str(entity->weapon), get_weapon_str(other->weapon)
                 );
                 loadOptions(OPTION_YES, OPTION_NO);
+                game.option_callback = OPTION;
                 return 0;
             }
+        }
+        else if(entity->weapon == WEAPON_NONE){
+            entity->weapon = other->weapon;
+            other->weapon = WEAPON_NONE;
         }
         entity->items |= other->items;
         other->items = ITEM_NONE;
@@ -460,6 +479,14 @@ int choose_option(int OPTION, void* context, int last_option){
         game.update = map_select_update;
         game.option_count = 0;
         map_select_update(CMD_DISPLAY);
+        return 0;
+    case OPTION_TEST:
+        loadOptions(OPTION_TEST_RNG, OPTION_CANCEL);
+        option_select_update(CMD_DISPLAY);
+        return 0;
+    case OPTION_TEST_RNG:
+        game.tmp_str_size = feed_str(game.tmp_str, ARLEN(game.tmp_str), "rng: %i", .arg[0].i = rng());
+        option_select_update(CMD_DISPLAY);
         return 0;
 
     default:
@@ -485,6 +512,8 @@ const char* get_option_str(int OPTION){
     case OPTION_RELEASE:    return "RELEASE";
     case OPTION_LOOT:       return "LOOT";
     case OPTION_LOAD_MAP:   return "LOAD MAP";
+    case OPTION_TEST:       return "TEST";
+    case OPTION_TEST_RNG:   return "TEST RNG";
     default:
         ETODO(OPTION);
         return NULL;

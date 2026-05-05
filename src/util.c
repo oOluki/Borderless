@@ -18,12 +18,31 @@ int _str_len(const char* str){
     return len;
 }
 
+static int feed_uint(char* output, uint64_t u, int max_len){
+    
+    if(!output) return 0;
+    
+    int len = 0;
+
+    uint64_t _10n = 1;
+    for(; (u / 10) / _10n; _10n *= 10);
+
+    for(; _10n && len < max_len; _10n /= 10){
+        const int beforedigit = (u / 10) / _10n;
+        const int afterdigit  = u - beforedigit * _10n * 10;
+        const int digit = afterdigit / _10n ;
+        output[len++] = digit + '0';
+    }
+
+    return len;
+}
+
 int _feed_str(char* output, int max_len, const char* input, const feed_str_arg_t args){
     int arg = 0;
     int len = 0;
     
     int i = 0;
-    while(input[i]){
+    while(input[i] && len < max_len){
         for(; input[i] && len < max_len && input[i] != '%'; i+=1){
             output[len] = input[i];
             len += 1;
@@ -32,25 +51,38 @@ int _feed_str(char* output, int max_len, const char* input, const feed_str_arg_t
             i+=1;
             if(arg >= ARLEN(args.arg)){
                 ERROR("formated string %s contains more formats %c than supported(%i)", input, '%', (int) ARLEN(args.arg));
+                return len;
             }
             else switch (input[i])
             {
-            case '\0':
-                break;
             case 's':
-                for(int j = 0; args.arg[arg].str[j] && len < max_len; j+=1){
+                if(args.arg[arg].str == NULL){
+                    const char str_null[] = "(null)";
+                    for(int i = 0; i < ARLEN(str_null) - 1 && len < max_len; i+=1)
+                        output[len++] = str_null[i];
+                }
+                else for(int j = 0; args.arg[arg].str[j] && len < max_len; j+=1){
                     output[len] = args.arg[arg].str[j];
                     len += 1;
                 }
                 arg+=1;
                 break;
+            case 'i':
+                if(args.arg[arg].i < 0){
+                    output[len++] = '-';
+                }
+            case 'u':
+                len += feed_uint(output + len, (input[i] == 'i')? ABS(args.arg[arg].i) : args.arg[arg].u, max_len);
+                printf("%i\n", args.arg[arg].i);
+                break;
             default:
-                ERROR("format %c not implemented\n", input[i]);
+                ERROR("format '%c' not implemented\n", input[i]);
                 break;
             }
             i+=1;
         }
     }
+    if(len >= max_len) REPORT(WARN, "in _feed_str strlen(%i) exceded max(%i)", len, max_len);
     return len;
 }
 

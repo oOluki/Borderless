@@ -3,7 +3,8 @@
 
 #include "begin.h"
 
-int rng(int optional_seed);
+// deterministic "random" number generator from 0 to 100
+int rng();
 
 void draw();
 
@@ -22,7 +23,7 @@ int _load_options(const int* options);
 // \returns the number of options
 int interact_with(int* output, const Tile _tile);
 
-int choose_option(int option, void* context, int last_option);
+int choose_option(int option, void* context);
 
 int game_init(Pixel* draw_canvas_pixels, int draw_canvas_w, int draw_canvas_h);
 

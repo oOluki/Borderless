@@ -175,6 +175,9 @@ enum Options{
 
     OPTION_LOAD_MAP,
 
+    OPTION_TEST,
+    OPTION_TEST_RNG,
+
     // for counting purposes
     OPTION_COUNT
 };
@@ -302,6 +305,7 @@ typedef struct Game{
     int             options[10];
     uint8_t         option_count;
     uint8_t         selected_option;
+    int             option_callback;
 
     void*           user_data;
 
