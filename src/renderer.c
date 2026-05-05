@@ -117,6 +117,8 @@ void draw_rect(Surface surface, int _x, int _y, int w, int h, Color color){
 
 int copy_raw(Surface surface, const unsigned char* sprite, int stride, int spritew, int spriteh, int x, int y, const uint32_t* _palette){
 
+    if(!sprite || !palette) return 1;
+
     int i;
     int j0;
     int irange = spritew;
@@ -199,7 +201,7 @@ void render_text(Surface surface, int _x, int y, const char* txt, uint32_t color
 
 
 
-static int console_draw_tile(char* output, const int output_stride, int tile){
+static int console_draw_tile(char* output, const int output_stride, Tile tile){
     const int tile_data = TILE_DATA(tile);
     const int TILETYPE = TILE_TYPE(tile);
     switch (TILETYPE)
@@ -287,6 +289,7 @@ static void console_draw_map(){
             const Tile tile = get_tile(game.map, j + joffset, i + ioffset);
             if(console_draw_tile(canvas, stride, tile)){
                 ERROR("Could not draw tile %16llx", (long long) tile);
+                return ;
             }
             canvas += 3;
         }
@@ -295,16 +298,40 @@ static void console_draw_map(){
         printf("     %.*s\n", stride, ((char*) game.draw_canvas.pixels) + 2 * stride);
     }
 
+    printf("    ");
     for(int j = 1; j < jrange; j+=2){
-        printf("        %3i", j);
+        printf("   %3i", j);
     }
     printf("\n");
 }
 
+static const unsigned char* get_weapon_sprite(int weapon, int direction, int* stride, int* w, int* h){
 
-static int graphics_draw_tile(int tile, int x, int y){
+    if(weapon < 0 || weapon > WEAPON_COUNT){
+        ERROR("invalid weapon %i", weapon);
+        return NULL;
+    }
+
+    const SpriteSheet spritesheet = weapon_spritesheets[weapon];
+    if(spritesheet.sprites_per_row != 1){
+        ERROR("weapon spritesheets are expected to have 1 sprite per row, weapon %i got %i instead", weapon, spritesheet.sprites_per_row);
+        return NULL;
+    }
+    const unsigned char* sprite = spritesheet.spritesheet + spritesheet.spritew * spritesheet.spriteh * direction;
+
+    // tests is direction is odd
+    const int swap = direction % 2;
+    
+    if(w) *w = (swap)? spritesheet.spriteh : spritesheet.spritew;
+    if(h) *h = (swap)? spritesheet.spritew : spritesheet.spriteh;
+    if(stride) *stride = (swap)? spritesheet.spriteh : spritesheet.spritew;
+
+    return sprite;
+}
+
+static int graphics_draw_tile(Tile tile, int x, int y){
     const int tile_data = TILE_DATA(tile);
-    const int TILETYPE = TILETYPE;
+    const int TILETYPE = TILE_TYPE(tile);
     switch (TILETYPE)
     {
     case TILETYPE_NONE:
@@ -330,11 +357,15 @@ static int graphics_draw_tile(int tile, int x, int y){
             const int sh = weapon_spritesheets[entity->weapon].spriteh;
             const int w = (orient == ORIENT_UP || orient == ORIENT_DOWN)? sw : sh;
             const int h = (orient == ORIENT_UP || orient == ORIENT_DOWN)? sh : sw;
-            copy_sprite(
-                game.draw_canvas, weapon_spritesheets[entity->weapon],
+            int wstride;
+            int wsw;
+            int wsh;
+            const unsigned char* const weapon_sprite = get_weapon_sprite(entity->weapon, entity->orientation, &wstride, &wsw, &wsh);
+            copy_raw(
+                game.draw_canvas, weapon_sprite, wstride, wsw, wsh,
                 (dx > 0)? x + entity_spritesheet.spritew + 1 : x + dx * (w + 1),
-                (dy > 0)? y + entity_spritesheet.spriteh + 1 : y + dy * (h + 1), orient,
-                (Color[3]){0x00000000, palette[1]}
+                (dy > 0)? y + entity_spritesheet.spriteh + 1 : y + dy * (h + 1),
+                (Color[3]){0x00000000, palette[1], enitity_color[entity->id]}
             );
             copy_sprite(
                 game.draw_canvas, fontsheet,
@@ -367,7 +398,8 @@ static void graphics_draw_map(){
         for(int j = 0; j < jrange; j+=1){
             const Tile tile = get_tile(game.map, j + joffset, i + ioffset);
             if(graphics_draw_tile(tile, j * TILEW - (game.camera.x % TILEW), i * TILEH - (game.camera.y % TILEH))){
-                ERROR("Could not draw tile %16llx", (long long) tile);
+                ERROR("Could not draw tile %llu", (long long unsigned) tile);
+                return ;
             }
         }
     }

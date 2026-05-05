@@ -137,7 +137,7 @@ int main(int argc, char** argv){
             for(; argv[i][j] >= '0' && argv[i][j] <= '9'; j+=1){
                 width = (width * 10) + (argv[i][j] - '0');
             }
-            if(argv[i][j]){
+            if(argv[i][j] < '0' || argv[i][j] > '9'){
                 fprintf(stderr, "[ERROR] invalid width in %s\n", argv[i]);
                 MAIN_RETURN_STATUS(1);
             }
@@ -145,13 +145,13 @@ int main(int argc, char** argv){
         }
         else if(cmp_str(argv[i], "--height=", 1)){
             int height = 0;
-            int j = ARLEN("--width=") - 1;
-            for(; argv[i][j] >= '0' && argv[i][j] <= '9'; j+=1){
-                height = (height * 10) + (argv[i][j] - '0');
-            }
-            if(argv[i][j]){
+            int j = ARLEN("--height=") - 1;
+            if(argv[i][j] < '0' || argv[i][j] > '9'){
                 fprintf(stderr, "[ERROR] invalid height in %s\n", argv[i]);
                 MAIN_RETURN_STATUS(1);
+            }
+            for(; argv[i][j] >= '0' && argv[i][j] <= '9'; j+=1){
+                height = (height * 10) + (argv[i][j] - '0');
             }
             game.camera.h = height;
         }
