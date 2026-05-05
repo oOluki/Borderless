@@ -1,9 +1,7 @@
 #ifndef ASSETS_HEADER
 #define ASSETS_HEADER
 
-#define FONT_SIZE 8
-#define FONT_ELEMENTS_PER_ROW 8
-#define FONT_STRIDE (FONT_SIZE * FONT_ELEMENTS_PER_ROW)
+#include "begin.h"
 
 enum FontSprites{
 	FONT_0 = 0,
@@ -53,25 +51,13 @@ enum EntitySprites{
 
 extern const char simple_console_font[];
 
-extern const int  fontsheetw;
-extern const int  fontsheeth;
-extern const unsigned char fontsheet[];
+extern const SpriteSheet fontsheet;
 
-extern const int entity_sprite_size;
-extern const int entity_spritesheet_stride;
-extern const unsigned char entity_spritesheet[];
+extern const SpriteSheet entity_spritesheet;
 
-extern const int map1w;
-extern const int map1h;
-extern const unsigned char map1[];
+extern const LoadMap maps[];
 
-extern const int testmapw;
-extern const int testmaph;
-extern const unsigned char testmap[];
-
-extern const int pistol_spritew;
-extern const int pistol_spriteh;
-extern const unsigned char pistol_sprites[];
+extern const SpriteSheet weapon_spritesheets[];
 
 int get_sprite_from_char(char c);
 

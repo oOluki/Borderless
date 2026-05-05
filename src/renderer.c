@@ -28,6 +28,11 @@ static const uint32_t enitity_color[]   = {
     [ENTITY_PLAYER] = 0xffdcdcdc,
     [ENTITY_ENEMY1] = 0xff1919e6
 };
+static const char entity_symbol[]   = {
+    [ENTITY_NONE]   = '.',
+    [ENTITY_PLAYER] = 'p',
+    [ENTITY_ENEMY1] = '@'
+};
 
 static inline Surface create_surface(Pixel* pixels, int w, int h, int stride){
     return (Surface){.pixels = pixels, .w = w, .h = h, .stride = stride};
@@ -110,22 +115,7 @@ void draw_rect(Surface surface, int _x, int _y, int w, int h, Color color){
 
 #define drawrect(surface, rect, color) draw_rect((surface), (rect).x, (rect).y, (rect).w, (rect).h, color)
 
-int copy_sprite(
-    Surface surface,
-    const unsigned char* spritesheet,
-    int sprites_per_row,
-    int stride,
-    int spritew, int spriteh,
-    int x, int y, int _sprite,
-    const Color* palette
-){
-
-    if(!palette) return 1;
-
-    const unsigned char* const sprite =
-        spritesheet +
-        (_sprite % sprites_per_row) * spritew +
-        ((int) (_sprite / sprites_per_row)) * spriteh * stride;
+int copy_raw(Surface surface, const unsigned char* sprite, int stride, int spritew, int spriteh, int x, int y, const uint32_t* _palette){
 
     int i;
     int j0;
@@ -159,74 +149,49 @@ int copy_sprite(
     for( ; i < irange; i+=1){
         for(int j = j0; j < jrange; j+=1){
             surface.pixels[(y + i) * surface.stride + (x + j)] = blend_colors(
-                palette[sprite[i * stride + j]],
+                _palette[sprite[i * stride + j]],
                 surface.pixels[(y + i) * surface.stride + (x + j)]
             );
         }
     }
-
     return 0;
 }
 
-void render_text(Surface surface, int x, int y, const char* txt, uint32_t color){
+int copy_sprite(Surface surface, const SpriteSheet spritesheet, int x, int y, int _sprite, const Color* _palette){
+
+    if(!_palette || !spritesheet.spritesheet) return 1;
+
+    DEBUG_ASSERT(spritesheet.sprites_per_row > 0);
+
+    const unsigned char* const sprite =
+        spritesheet.spritesheet +
+        (_sprite % spritesheet.sprites_per_row) * spritesheet.spritew +
+        ((int) (_sprite / spritesheet.sprites_per_row)) * spritesheet.spriteh * spritesheet.stride;
+
+    return copy_raw(surface, sprite, spritesheet.stride, spritesheet.spritew, spritesheet.spriteh, x, y, _palette);
+}
+
+void render_text(Surface surface, int _x, int y, const char* txt, uint32_t color){
 
     const uint32_t _palette[2] = {0x00000000, color};
 
     if(!txt) txt = "(null)";
 
+    int x = _x;
+
     for(int i = 0; txt[i]; i+=1){
 
         if(txt[i] == '\n'){
-            y +=FONT_SIZE;
+            y += fontsheet.spriteh;
+            x = _x;
             continue;
         }
         int _sprite = get_sprite_from_char(txt[i]);
         if(_sprite < 0) _sprite = FONT_SPACE;
 
-        const unsigned char* const sprite =
-        fontsheet +
-        (_sprite % FONT_ELEMENTS_PER_ROW) * FONT_SIZE +
-        ((int) (_sprite / FONT_ELEMENTS_PER_ROW)) * FONT_SIZE * FONT_STRIDE;
+        copy_sprite(surface, fontsheet, x, y, _sprite, (Color[]){0x00000000, color});
 
-    int i;
-    int j0;
-    int irange = FONT_SIZE;
-    int jrange = FONT_SIZE;
-
-    if(x >= surface.w || y >= surface.h || x < -FONT_SIZE || y < -FONT_SIZE) continue;
-
-    if(x < 0){
-        jrange = FONT_SIZE + x;
-        j0 = -x;
-    } else if(x + FONT_SIZE >= surface.w){
-        jrange = surface.w - x;
-        j0 = 0;
-    } else{
-        jrange = FONT_SIZE;
-        j0 = 0;
-    }
-
-    if(y < 0){
-        irange = FONT_SIZE + y;
-        i = -y;
-    } else if(y + FONT_SIZE >= surface.h){
-        irange = surface.h - y;
-        i = 0;
-    } else{
-        irange = FONT_SIZE;
-        i = 0;
-    }
-
-    for( ; i < irange; i+=1){
-        for(int j = j0; j < jrange; j+=1){
-            surface.pixels[(y + i) * surface.stride + (x + j)] = blend_colors(
-                sprite[i * FONT_STRIDE + j]? color : (uint32_t) 0x00000000,
-                surface.pixels[(y + i) * surface.stride + (x + j)]
-            );
-        }
-    }
-
-        x+=FONT_SIZE;
+        x += fontsheet.spritew;
     }
 
 }
@@ -249,20 +214,27 @@ static int console_draw_tile(char* output, const int output_stride, int tile){
                 output[i * output_stride + j] = console_map_palette[tile_data];
         return 0;
     case TILETYPE_PLAYER:
+    case TILETYPE_ENTITY:{
+        const Entity* entity;
+        if(TILE_TYPE(tile) == TILETYPE_PLAYER)
+            entity = &game.player;
+        else
+            entity = &game.entities[tile_data];
+
         for(int i = 0; i < 3; i+=1)
             for(int j = 0; j < 3; j+=1)
                 output[i * output_stride + j] = ' ';
 
-        if(game.player.state & STATE_ALIVE){
-            output[0] = (game.player.state & STATE_ALERTED)? simple_console_font[FONT_ALERT] : ' ';
+        if(entity->state & STATE_ALIVE){
+            output[0] = (entity->state & STATE_ALERTED)? simple_console_font[FONT_ALERT] : ' ';
         }
         else{
             output[0] = simple_console_font[FONT_DEAD];
         }
-        output[1 * output_stride + 1] = console_player_sym;
-        if(game.player.items & ITEM_PISTOL)
+        output[1 * output_stride + 1] = entity_symbol[entity->id];
+        if((entity->state & STATE_ALERTED) && (entity->weapon == WEAPON_PISTOL))
             output[2] = 'p';
-        switch (game.player.orientation)
+        switch (entity->orientation)
         {
         case ORIENT_UP:
             output[0 * output_stride + 1] = simple_console_font[FONT_UP];
@@ -280,39 +252,7 @@ static int console_draw_tile(char* output, const int output_stride, int tile){
             output[1 * output_stride + 0] = simple_console_font[FONT_INTERROGATION];
             break;
         }
-        return 0;
-    case TILETYPE_ENTITY:
-        for(int i = 0; i < 3; i+=1)
-            for(int j = 0; j < 3; j+=1)
-                output[i * output_stride + j] = ' ';
-
-        if(game.entities[tile_data].state & STATE_ALIVE){
-            output[0] = (game.entities[tile_data].state & STATE_ALERTED)? simple_console_font[FONT_ALERT] : ' ';
-        }
-        else{
-            output[0] = simple_console_font[FONT_DEAD];
-        }
-        output[1 * output_stride + 1] = console_enemy1_sym;
-        if((game.entities[tile_data].state & STATE_ALERTED) && (game.entities[tile_data].items & ITEM_PISTOL))
-            output[2] = 'p';
-        switch (game.entities[tile_data].orientation)
-        {
-        case ORIENT_UP:
-            output[0 * output_stride + 1] = simple_console_font[FONT_UP];
-            break;
-        case ORIENT_RIGHT:
-            output[1 * output_stride + 2] = simple_console_font[FONT_RIGHT];
-            break;
-        case ORIENT_DOWN:
-            output[2 * output_stride + 1] = simple_console_font[FONT_DOWN];
-            break;
-        case ORIENT_LEFT:
-            output[1 * output_stride + 0] = simple_console_font[FONT_LEFT];
-            break;
-        default:
-            output[1 * output_stride + 0] = simple_console_font[FONT_INTERROGATION];
-            break;
-        }
+    }
         return 0;
     default:
         for(int i = 0; i < 3; i+=1)
@@ -370,48 +310,41 @@ static int graphics_draw_tile(int tile, int x, int y){
     case TILETYPE_TILE:
         fill_rect(game.draw_canvas, x, y, TILEW, TILEH, palette[tile_data]);
         return 0;
-    case TILETYPE_PLAYER:{
-        if(TILEW > entity_sprite_size) x += (TILEW - entity_sprite_size) / 2;
-        if(TILEH > entity_sprite_size) y += (TILEH - entity_sprite_size) / 2;
-        return copy_sprite(
-            game.draw_canvas, entity_spritesheet,
-            1, entity_sprite_size,
-            entity_sprite_size, entity_sprite_size,
-            x, y, (game.player.state & STATE_ALIVE)? game.player.orientation : ENTITY_SPRITE_DEAD,
-            (Color[3]){0x00000000, palette[1], enitity_color[ENTITY_PLAYER]}
-        );
-    }
+    case TILETYPE_PLAYER:
     case TILETYPE_ENTITY:{
-        if(TILEW > entity_sprite_size) x += (TILEW - entity_sprite_size) / 2;
-        if(TILEH > entity_sprite_size) y += (TILEH - entity_sprite_size) / 2;
-        if(game.entities[tile_data].state & STATE_ALERTED){
-            const int orient = game.entities[tile_data].orientation;
+        const Entity* entity;
+        if(TILE_TYPE(tile) == TILETYPE_PLAYER)
+            entity = &game.player;
+        else
+            entity = &game.entities[tile_data];
+
+        if(TILEW > entity_spritesheet.spritew) x += (TILEW - entity_spritesheet.spritew) / 2;
+        if(TILEH > entity_spritesheet.spriteh) y += (TILEH - entity_spritesheet.spriteh) / 2;
+        if(entity->state & STATE_ALERTED){
+            const int orient = entity->orientation;
             const int dx = (orient == ORIENT_RIGHT) - (orient == ORIENT_LEFT);
             const int dy = (orient == ORIENT_DOWN)  - (orient == ORIENT_UP);
-            const int w = (orient == ORIENT_UP || orient == ORIENT_DOWN)? pistol_spritew : pistol_spriteh;
-            const int h = (orient == ORIENT_UP || orient == ORIENT_DOWN)? pistol_spriteh : pistol_spritew;
+            const int sw = weapon_spritesheets[entity->weapon].spritew;
+            const int sh = weapon_spritesheets[entity->weapon].spriteh;
+            const int w = (orient == ORIENT_UP || orient == ORIENT_DOWN)? sw : sh;
+            const int h = (orient == ORIENT_UP || orient == ORIENT_DOWN)? sh : sw;
             copy_sprite(
-                game.draw_canvas,
-                pistol_sprites + orient * pistol_spritew * pistol_spriteh,
-                1, w, w, h,
-                (dx > 0)? x + entity_sprite_size + 1 : x + dx * (w + 1),
-                (dy > 0)? y + entity_sprite_size + 1 : y + dy * (h + 1), 0,
+                game.draw_canvas, weapon_spritesheets[entity->weapon],
+                (dx > 0)? x + entity_spritesheet.spritew + 1 : x + dx * (w + 1),
+                (dy > 0)? y + entity_spritesheet.spriteh + 1 : y + dy * (h + 1), orient,
                 (Color[3]){0x00000000, palette[1]}
             );
             copy_sprite(
-                game.draw_canvas,
-                fontsheet, FONT_ELEMENTS_PER_ROW,
-                FONT_STRIDE, FONT_SIZE, FONT_SIZE,
-                x, y - entity_sprite_size, FONT_ALERT,
-                (Color[3]){0x00000000, enitity_color[ENTITY_ENEMY1]}
+                game.draw_canvas, fontsheet,
+                x, y - entity_spritesheet.spriteh, FONT_ALERT,
+                (Color[3]){0x00000000, enitity_color[entity->id]}
             );
         }
         return copy_sprite(
             game.draw_canvas, entity_spritesheet,
-            1, entity_sprite_size,
-            entity_sprite_size, entity_sprite_size,
-            x, y, (game.entities[tile_data].state & STATE_ALIVE)? game.entities[tile_data].orientation : ENTITY_SPRITE_DEAD,
-            (Color[3]){0x00000000, palette[1], enitity_color[ENTITY_ENEMY1]}
+            x, y,
+            (entity->state & STATE_ALIVE)? entity->orientation : ENTITY_SPRITE_DEAD,
+            (Color[3]){0x00000000, palette[1], enitity_color[entity->id]}
         );
     }
     default:
@@ -447,14 +380,14 @@ void draw(){
         clear_rect(game.draw_canvas, 0, 0, game.camera.w, game.camera.h, BACKGROUND_COLOR);
         graphics_draw_map();
         game.tmp_str[game.tmp_str_size] = '\0';
-        render_text(game.draw_canvas, (game.camera.w - game.tmp_str_size * FONT_SIZE) / 2, 0, game.tmp_str, 0xFF991122);
+        render_text(game.draw_canvas, (game.camera.w - game.tmp_str_size * fontsheet.spritew) / 2, 0, game.tmp_str, 0xFF991122);
         for(int i = 0; i < game.option_count; i+=1){
             const char* const option_str = get_option_str(game.options[i]);
             const int option_str_len = _str_len(option_str);
             render_text(
                 game.draw_canvas,
-                (game.camera.w - option_str_len * FONT_SIZE) / 2,
-                FONT_SIZE + (i * (game.camera.h - FONT_SIZE)) / game.option_count,
+                (game.camera.w - option_str_len * fontsheet.spritew) / 2,
+                fontsheet.spriteh + (i * (game.camera.h - fontsheet.spriteh)) / game.option_count,
                 option_str, (i == game.selected_option)? 0xFF119922 : 0xFF111111
             );
         }
@@ -463,7 +396,7 @@ void draw(){
         printf("\x1B[2J\x1B[H\n");
         console_draw_map();
         printf("%.*s\n", game.tmp_str_size, game.tmp_str);
-        printf("options:\n");
+        if(game.option_count > 0) printf("options:\n");
         for(int i = 0; i < game.option_count; i+=1){
             printf("%c%i- %s\n", (i == game.selected_option)? '*' : ' ', i, get_option_str(game.options[i]));
         }

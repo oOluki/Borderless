@@ -156,7 +156,7 @@ int update_entity(Entity* self){
             }
             if(self->state & STATE_ALERTED){
                 const int d2 = distance2(game.player.x / TILEW, game.player.y / TILEH, self->x / TILEW, self->y / TILEH);
-                if((d2 < 2) || (d2 <= 9 && self->items & ITEM_PISTOL))
+                if((d2 < 2) || (d2 <= 9 && self->weapon == WEAPON_PISTOL))
                     game.player.state = STATE_DEAD;
             }
             self->targetx = game.player.x;

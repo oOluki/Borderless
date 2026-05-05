@@ -41,7 +41,7 @@ static inline int load_entity(int type, int x, int y, int state, int orientation
         ERROR("could not load entity, entity overflow\n");
         return 1;
     }
-    game.entities[game.entity_count++] = (Entity){.type = type, .x = x, .y = y, .state = state, .orientation = orientation, .items = items};
+    game.entities[game.entity_count++] = (Entity){.id = type, .x = x, .y = y, .state = state, .orientation = orientation, .items = items};
     return 0;
 }
 
@@ -61,7 +61,7 @@ static Tile load_tile_component(int tile, int map_x, int map_y, const unsigned c
     case TILE_PLAYER_FACE_DOWN:
     case TILE_PLAYER_FACE_LEFT:
         game.player = (Entity){
-            .type = ENTITY_PLAYER,
+            .id = ENTITY_PLAYER,
             .x = map_x * TILEW,
             .y = map_y * TILEH,
             .orientation = tile - TILE_PLAYER_FACE_UP,
@@ -75,7 +75,7 @@ static Tile load_tile_component(int tile, int map_x, int map_y, const unsigned c
             return MK_TILE(TILETYPE_ERROR, 0);
         }
         game.entities[game.entity_count++] = (Entity){
-            .type = ENTITY_ENEMY1,
+            .id = ENTITY_ENEMY1,
             .x = map_x * TILEW,
             .y = map_y * TILEH,
             .orientation = src[map_x * map_y + tile - TILE_FIRST_ENTITY] >> 6,
@@ -91,12 +91,12 @@ static Tile load_tile_component(int tile, int map_x, int map_y, const unsigned c
 }
 
 
-int load_map(const unsigned char* src, int w, int h){
+int load_map(const LoadMap map){
 
-    if(w < 0 || h < 0) return 1;
+    if(map.w < 0 || map.h < 0) return 1;
 
     // unload map
-    if(!src){
+    if(!map.map){
         game.map.map = NULL;
         game.map.w = 0;
         game.map.h = 0;
@@ -110,12 +110,12 @@ int load_map(const unsigned char* src, int w, int h){
     dest->map = mapbuff;
 
 
-    dest->w = w;
-    dest->h = h;
+    dest->w = map.w;
+    dest->h = map.h;
 
-    for(int i = 0; i < h; i+=1){
-        for(int j = 0; j < w; j+=1){
-            dest->map[i * dest->w + j] = load_tile_component(src[i * w + j], j, i, src);
+    for(int i = 0; i < map.h; i+=1){
+        for(int j = 0; j < map.w; j+=1){
+            dest->map[i * dest->w + j] = load_tile_component(map.map[i * map.w + j], j, i, map.map);
         }
     }
     return 0;

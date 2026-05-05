@@ -46,7 +46,7 @@ int level_update(int cmd){
         game.debug = !game.debug;
         break;
     case CMD_CHEAT_RESTART:
-        loadMap(map1);
+        load_map(maps[0]);
         break;
     case CMD_BACK:
         game.update = option_select_update;
@@ -284,7 +284,7 @@ int choose_option(int option, void* context, int* response){
     case OPTION_PLAY:
         game.entity_count = 0;
         game.option_count = 0;
-        loadMap(map1);
+        load_map(maps[0]);
         game.update = level_update;
         level_update(CMD_DISPLAY);
         return 1;
@@ -422,7 +422,7 @@ int game_init(Pixel* draw_canvas_pixels, int draw_canvas_w, int draw_canvas_h){
     game.mouse  = (Rect){.x = 0, .y = 0, .w = TILEW / 4 , .h = TILEH / 4 };
 
     //load_map(map1, map1w, map1h);
-    loadMap(map1);
+    load_map(maps[0]);
     game.active = 1;
 
     game.update = level_update;

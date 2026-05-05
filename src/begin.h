@@ -4,9 +4,17 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <math.h>
+#include <assert.h>
 
 #ifndef DONT_SUPPORT_SDL
     #define SUPPORT_SDL 1
+#endif
+
+
+#if defined(NDEBUG) || defined(DEBUG)
+    #define DEBUG_CODE(X) X
+#else
+    #define DEBUG_CODE(X)
 #endif
 
 #define GAME_NAME "Borderless"
@@ -14,10 +22,11 @@
 #define ERROR(MSG) fprintf(stderr, "[ERROR] " __FILE__ ":%i:0: " MSG "\n", __LINE__)
 #define VERROR(MSG, ...) fprintf(stderr, "[ERROR] " __FILE__ ":%i:0: " MSG "\n", __LINE__, __VA_ARGS__)
 
-#define ASSERT(CONDITION, RETURN_VALUE) if(!(CONDITION)){\
-    VERROR("ASSERTION '" #CONDITION "' FAILED");\
-    return RETURN_VALUE;\
-    }
+
+#define DEBUG_ERROR(MSG) DEBUG_CODE(ERROR(MSG))
+#define DEBUG_VERROR(MSG, ...) DEBUG_CODE(VERROR(MSG, __VA_ARGS__))
+
+#define DEBUG_ASSERT(CONDITION) DEBUG_CODE(assert(CONDITION))
 
 #define MIN(X, Y) (((X) < (Y))? (X) :  (Y))
 #define MAX(X, Y) (((X) > (Y))? (X) :  (Y))
@@ -153,16 +162,30 @@ enum Options{
     OPTION_COUNT
 };
 
+enum Weapons{
+    WEAPON_NONE = 0,
+    WEAPON_PISTOL,
+
+    // for counting purposes
+    WEAPON_COUNT
+};
+
 enum Items{
-    ITEM_NONE   = 0,
+    ITEM_NONE = 0,
 
-    ITEM_PISTOL = 1 << 0,
+    ITEM_DUMMY = 1 << 0,
 
-    ITEM_AFTER_LAST_WEAPON,
-    ITEM_AFTER_LAST = ITEM_AFTER_LAST_WEAPON,
-    
-    ITEM_FULL_WEAPON_MASK = 2 * (ITEM_AFTER_LAST_WEAPON - 1) - 1,
-    ITEM_FULL_MASK = 2 * (ITEM_AFTER_LAST - 1) - 1
+    ITEM_LAST,
+
+    ITEM_FULL_MASK = ((ITEM_LAST - 1) << 1) - 1
+};
+
+enum Maps{
+    MAP_0 = 0,
+    MAP_TEST,
+
+    // for counting purposes
+    MAP_COUNT
 };
 
 typedef Color Pixel;
@@ -190,7 +213,7 @@ typedef struct Surface
 
 typedef struct Entity
 {
-    int type;
+    int id;
     int x;
     int y;
     int orientation;
@@ -208,6 +231,12 @@ typedef struct Map{
     Tile*   map;
 } Map;
 
+typedef struct LoadMap{
+    const int               w;
+    const int               h;
+    const unsigned char*    map;
+} LoadMap;
+
 typedef struct Node {
     int parent;
     int x;
@@ -222,6 +251,16 @@ typedef struct Ray
     float cos;
     float sin;
 } Ray;
+
+typedef struct SpriteSheet
+{
+    const unsigned char* spritesheet;
+    const int sprites_per_row;
+    const int stride;
+    const int spritew;
+    const int spriteh;
+} SpriteSheet;
+
 
 typedef struct Game{
 

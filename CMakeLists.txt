@@ -6,6 +6,14 @@ project(Borderless VERSION 0.0.11 LANGUAGES C)
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_CXX_STANDARD 99)
 
+# Conditional settings based on the build type
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    message(STATUS "Configuring for Debug build")
+    add_compile_definitions(-DNDEBUG=1)
+else()
+    message(STATUS "Configuring for Release build")
+endif()
+
 
 # Add executable
 file(GLOB SRC_FILES "src/*.c")

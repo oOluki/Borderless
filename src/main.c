@@ -59,6 +59,10 @@ int main(int argc, char** argv){
 
     #define MAIN_RETURN_STATUS(STATUS) do { status = STATUS; goto defer; } while(0)
 
+    DEBUG_CODE(
+        printf("in debug mode\n");
+    );
+
     static Pixel draw_canvas_pixels[800 * 640];
 
     FILE* input  = NULL;
