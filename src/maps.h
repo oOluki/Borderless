@@ -5,12 +5,14 @@
 
 #define MAXMAPSIZE (1024)
 
+const char* get_map_str(int map);
+
 int place_tile(Map* map, Tile tile, int x, int y);
 
 Tile get_tile(const Map map, int x, int y);
 
 
-int load_map(const LoadMap map);
+int load_map(int _map);
 
 void move_tile(int x, int y, int nx, int ny);
 

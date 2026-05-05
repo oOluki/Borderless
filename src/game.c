@@ -26,7 +26,17 @@ int rng(int optional_seed){
     return seed;
 }
 
-
+const char* get_weapon_str(int weapon){
+    switch (weapon)
+    {
+    case WEAPON_PISTOL: return "PISTOL";
+    
+    default:
+        TODO("weapon %i", weapon);
+    case WEAPON_NONE:
+        return NULL;
+    }
+}
 
 int level_update(int cmd){
 
@@ -46,11 +56,11 @@ int level_update(int cmd){
         game.debug = !game.debug;
         break;
     case CMD_CHEAT_RESTART:
-        load_map(maps[0]);
+        load_map(0);
         break;
     case CMD_BACK:
         game.update = option_select_update;
-        loadOptions(OPTION_QUIT, OPTION_PLAY, OPTION_CANCEL);
+        loadOptions(OPTION_QUIT, OPTION_PLAY, OPTION_LOAD_MAP, OPTION_CANCEL);
         option_select_update(CMD_DISPLAY);
         return 0;
     case CMD_ENTER:{
@@ -201,6 +211,11 @@ int level_update(int cmd){
 
 int option_select_update(int cmd){
 
+    if(game.option_count <= 0){
+        game.update = level_update;
+        return level_update(CMD_DISPLAY);
+    }
+
     switch(cmd)
     {
     case CMD_NONE:
@@ -226,7 +241,7 @@ int option_select_update(int cmd){
     case CMD_MOUSECLICK:
     case CMD_ENTER:
         if(game.selected_option >= 0 && game.selected_option < game.option_count){
-            if(choose_option(game.options[game.selected_option], &game.player, NULL)){
+            if(choose_option(game.options[game.selected_option], &game.player, OPTION_NONE)){
                 if(0 == game.active)
                     return 1;
                 game.update = level_update;
@@ -240,6 +255,56 @@ int option_select_update(int cmd){
     default:
         return 0;
     }
+
+    draw();
+
+    return 0;
+}
+
+
+static inline void load_map_and_center_camera(int map){
+    load_map(map);
+    game.camera.x = game.player.x - game.camera.w / 2;
+    game.camera.y = game.player.y - game.camera.h / 2;
+}
+
+static int map_select_update(int cmd){
+
+    switch (cmd)
+    {
+    case CMD_QUIT:
+        game.active = 0;
+        return 1;
+    case CMD_BACK:
+    case CMD_ENTER:
+        game.tmp_str_size = 0;
+        game.update = level_update;
+        return level_update(CMD_DISPLAY);
+    case CMD_UP:
+        game.map_number = MAP_0;
+        load_map_and_center_camera(game.map_number);
+        break;
+    case CMD_DOWN:
+        game.map_number = MAP_COUNT - 1;
+        DEBUG_CODE(if(game.map_number < 0) {ERROR("game.map_number < 0"); return 1;});
+        load_map_and_center_camera(game.map_number);
+        break;
+    case CMD_RIGHT:
+        DEBUG_CODE(if(game.map_number < 0) {ERROR("MAP_COUNT == 0"); return 1;});
+        game.map_number = (game.map_number + 1) % MAP_COUNT;
+        load_map_and_center_camera(game.map_number);
+        break;
+    case CMD_LEFT:
+        DEBUG_CODE(if(game.map_number < 0) {ERROR("MAP_COUNT == 0"); return 1;});
+        game.map_number = (game.map_number <= 0)? MAP_COUNT - 1 : game.map_number - 1;
+        load_map_and_center_camera(game.map_number);
+        break;
+    
+    default:
+        break;
+    }
+
+    game.tmp_str_size = feed_str(game.tmp_str, ARLEN(game.tmp_str), "map: %s", .arg[0].str = get_map_str(game.map_number));
 
     draw();
 
@@ -263,8 +328,8 @@ int interact_with(int* output, const Tile _tile){
     default:
         game.tmp_str_size += feed_str(
             &game.tmp_str[game.tmp_str_size],
-            "Nothing to interact with...",
-            sizeof(game.tmp_str) - game.tmp_str_size
+            sizeof(game.tmp_str) - game.tmp_str_size,
+            "Nothing to interact with..."
         );
         break;
     }
@@ -272,8 +337,8 @@ int interact_with(int* output, const Tile _tile){
     return count;
 }
 
-int choose_option(int option, void* context, int* response){
-    switch (option)
+int choose_option(int OPTION, void* context, int last_option){
+    switch (OPTION)
     {
     case OPTION_NONE:
         return 0;
@@ -284,16 +349,15 @@ int choose_option(int option, void* context, int* response){
     case OPTION_PLAY:
         game.entity_count = 0;
         game.option_count = 0;
-        load_map(maps[0]);
+        load_map(game.map_number);
         game.update = level_update;
         level_update(CMD_DISPLAY);
         return 1;
     
     case OPTION_YES:
-        if(response) *response = 1;
-        return 1;
+        DEBUG_ASSERT(last_option != OPTION_YES);
+        return choose_option(last_option, context, OPTION_YES);
     case OPTION_NO:
-        if(response) *response = 0;
         return 1;
 
     case OPTION_ATTACK:{
@@ -366,28 +430,47 @@ int choose_option(int option, void* context, int* response){
         const Tile tile = get_tile(game.map, px + dx, py + dy);
         if(TILE_TYPE(tile) != TILETYPE_ENTITY)
             return 1;
-        if(game.entities[TILE_DATA(tile)].state & STATE_ALIVE){
-            game.entities[TILE_DATA(tile)].state |= STATE_ALERTED;
-            const int robbed_item = rng(0) & ITEM_FULL_MASK;
-            game.entities[TILE_DATA(tile)].items &= ~robbed_item;
+        Entity* const other = &game.entities[TILE_DATA(tile)];
+        if(other->state & STATE_ALIVE){
+            other->state |= STATE_ALERTED;
+            const int robbed_item = rng(robbed_item) & ITEM_FULL_MASK;
+            other->items &= ~robbed_item;
             entity->items |= robbed_item;
             return 1;
         }
-        entity->items |= game.entities[TILE_DATA(tile)].items;
-        game.entities[TILE_DATA(tile)].items = ITEM_NONE;
+        if(entity->id == ENTITY_PLAYER && entity->weapon != WEAPON_NONE && other->weapon != WEAPON_NONE && other->weapon != entity->weapon){
+            if(last_option == OPTION_YES){
+                entity->weapon = other->weapon;
+                other->weapon = WEAPON_NONE;
+            }
+            else{
+                feed_str(
+                    game.tmp_str, game.tmp_str_size, "want to swap your %s for %s?",
+                    get_weapon_str(entity->weapon), get_weapon_str(other->weapon)
+                );
+                loadOptions(OPTION_YES, OPTION_NO);
+                return 0;
+            }
+        }
+        entity->items |= other->items;
+        other->items = ITEM_NONE;
     }
         return 1;
+    case OPTION_LOAD_MAP:
+        game.update = map_select_update;
+        game.option_count = 0;
+        map_select_update(CMD_DISPLAY);
+        return 0;
 
     default:
-        VERROR("Invalid option %i\n", option);
+        ETODO(OPTION);
         return 1;
     }
 }
 
-const char* get_option_str(int option){
-    switch (option)
+const char* get_option_str(int OPTION){
+    switch (OPTION)
     {
-    default:
     case OPTION_NONE:       return "OPTION_NONE";
     case OPTION_CANCEL:     return "CANCEL";
     case OPTION_QUIT:       return "QUIT";
@@ -401,10 +484,16 @@ const char* get_option_str(int option){
     case OPTION_GRAB:       return "GRAB";
     case OPTION_RELEASE:    return "RELEASE";
     case OPTION_LOOT:       return "LOOT";
+    case OPTION_LOAD_MAP:   return "LOAD MAP";
+    default:
+        ETODO(OPTION);
+        return NULL;
     }
 }
 
 int game_init(Pixel* draw_canvas_pixels, int draw_canvas_w, int draw_canvas_h){
+
+    game.active = 1;
 
     game.draw_canvas = (Surface){draw_canvas_pixels, draw_canvas_w, draw_canvas_h, draw_canvas_w};
 
@@ -422,10 +511,14 @@ int game_init(Pixel* draw_canvas_pixels, int draw_canvas_w, int draw_canvas_h){
     game.mouse  = (Rect){.x = 0, .y = 0, .w = TILEW / 4 , .h = TILEH / 4 };
 
     //load_map(map1, map1w, map1h);
-    load_map(maps[0]);
-    game.active = 1;
+    load_map(0);
 
     game.update = level_update;
+
+    if(game.active != 1){
+        game.active = 0;
+        return 1;
+    }
     
     return 0;
 }

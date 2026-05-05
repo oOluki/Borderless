@@ -113,7 +113,7 @@ int getascii_cmd(){
             game.update(CMD_DISPLAY);
             game.update_subsystem();
 #else
-            ERROR("can't change to sdl, no sdl support\n");
+            REPORT(REPORT, "can't change to sdl, no sdl support\n");
 #endif // END OF #ifdef SUPPORT_SDL
             return CMD_NONE;
         case 'h':
@@ -131,7 +131,7 @@ int getascii_cmd(){
             return CMD_NONE;
         
         default:
-            VERROR("no signal for %u '%c', enter h for little help message", c, c);
+            REPORT(REPORT, "no signal for %u '%c', enter h for little help message", c, c);
             return CMD_NONE;
         }
     }
@@ -140,7 +140,7 @@ int getascii_cmd(){
     const int cmd = get_char_cmd(c);
 
     if(cmd == CMD_ERROR){
-        VERROR("no cmd for char %u '%c', enter :h for little help message\n", c, c);
+        REPORT(REPORT, "no cmd for char %u '%c', enter :h for little help message\n", c, c);
         return CMD_NONE;
     }
 
@@ -193,7 +193,7 @@ enum UserMovement{
 int initsdl_subsystem(){
     const int status = SDL_Init(SDL_INIT_EVERYTHING);
     if(status){
-        VERROR("SDL failed to initialize: %s\n", SDL_GetError());
+        REPORT(REPORT, "SDL failed to initialize: %s\n", SDL_GetError());
         SDL_Quit();
         return 1;
     }
@@ -204,14 +204,14 @@ int initsdl_subsystem(){
         SDL_WINDOW_RESIZABLE
     );
     if(!user_data.window){
-        VERROR("SDL failed to create window: %s\n", SDL_GetError());
+        REPORT(REPORT, "SDL failed to create window: %s\n", SDL_GetError());
         SDL_Quit();
         return 1;
     }
     user_data.window_surface = SDL_GetWindowSurface(user_data.window);
     if(!user_data.window_surface){
         SDL_DestroyWindow(user_data.window);
-        VERROR("SDL failed to create window_surface: %s\n", SDL_GetError());
+        REPORT(REPORT, "SDL failed to create window_surface: %s\n", SDL_GetError());
         SDL_Quit();
         return 1;
     }
@@ -223,7 +223,7 @@ int initsdl_subsystem(){
     );
     if(!user_data.framebuffer){
         SDL_DestroyWindow(user_data.window);
-        VERROR("SDL failed to create framebuffer: %s\n", SDL_GetError());
+        REPORT(REPORT, "SDL failed to create framebuffer: %s\n", SDL_GetError());
         SDL_Quit();
         return 1;
     }

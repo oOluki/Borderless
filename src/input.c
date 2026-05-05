@@ -4,8 +4,10 @@
 #include "begin.h"
 #include "input.h"
 
-char get_cmd_char(int cmd){
-    switch (cmd)
+extern Game game;
+
+char get_cmd_char(int CMD){
+    switch (CMD)
     {
     case CMD_NONE:              return ' ';
     case CMD_QUIT:              return 'q';
@@ -23,7 +25,7 @@ char get_cmd_char(int cmd){
     case CMD_CHEAT_RESTART:     return '@';
     case CMD_SPECIAL_SIGNAL:    return '^';
     case CMD_FINNISHED:         return '\n';
-    default:                    return '?';
+    default:       ETODO(CMD);  return '?';
     }
 }
 
@@ -53,8 +55,8 @@ int get_char_cmd(int _char){
     }
 }
 
-const char* get_cmd_str(int cmd){
-    switch (cmd)
+const char* get_cmd_str(int CMD){
+    switch (CMD)
     {
     case CMD_QUIT:              return "CMD_QUIT";
     case CMD_UPDATE:            return "CMD_UPDATE";
@@ -71,7 +73,7 @@ const char* get_cmd_str(int cmd){
     case CMD_CHEAT_RESTART:     return "CMD_CHEAT_RESTART";
     case CMD_SPECIAL_SIGNAL:    return "CMD_SPECIAL_SIGNAL";
     case CMD_FINNISHED:         return "CMD_FINNISHED";
-    default:                    return "CMD_NONE";
+    default:        ETODO(CMD); return NULL;
     }
 }
 

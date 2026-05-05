@@ -201,7 +201,8 @@ void render_text(Surface surface, int _x, int y, const char* txt, uint32_t color
 
 static int console_draw_tile(char* output, const int output_stride, int tile){
     const int tile_data = TILE_DATA(tile);
-    switch (TILE_TYPE(tile))
+    const int TILETYPE = TILE_TYPE(tile);
+    switch (TILETYPE)
     {
     case TILETYPE_NONE:
         for(int i = 0; i < 3; i+=1)
@@ -216,7 +217,7 @@ static int console_draw_tile(char* output, const int output_stride, int tile){
     case TILETYPE_PLAYER:
     case TILETYPE_ENTITY:{
         const Entity* entity;
-        if(TILE_TYPE(tile) == TILETYPE_PLAYER)
+        if(TILETYPE == TILETYPE_PLAYER)
             entity = &game.player;
         else
             entity = &game.entities[tile_data];
@@ -258,7 +259,7 @@ static int console_draw_tile(char* output, const int output_stride, int tile){
         for(int i = 0; i < 3; i+=1)
             for(int j = 0; j < 3; j+=1)
                 output[i * output_stride + j] = '?';
-        VERROR("Invalid tile type %i", (int) TILE_TYPE(tile));
+        ETODO(TILETYPE);
         return 1;
     }
 }
@@ -285,7 +286,7 @@ static void console_draw_map(){
         for(int j = 0; j < jrange; j+=1){
             const Tile tile = get_tile(game.map, j + joffset, i + ioffset);
             if(console_draw_tile(canvas, stride, tile)){
-                VERROR("Could not draw tile %16llx", (long long) tile);
+                ERROR("Could not draw tile %16llx", (long long) tile);
             }
             canvas += 3;
         }
@@ -303,7 +304,8 @@ static void console_draw_map(){
 
 static int graphics_draw_tile(int tile, int x, int y){
     const int tile_data = TILE_DATA(tile);
-    switch (TILE_TYPE(tile))
+    const int TILETYPE = TILETYPE;
+    switch (TILETYPE)
     {
     case TILETYPE_NONE:
         return 0;
@@ -313,7 +315,7 @@ static int graphics_draw_tile(int tile, int x, int y){
     case TILETYPE_PLAYER:
     case TILETYPE_ENTITY:{
         const Entity* entity;
-        if(TILE_TYPE(tile) == TILETYPE_PLAYER)
+        if(TILETYPE == TILETYPE_PLAYER)
             entity = &game.player;
         else
             entity = &game.entities[tile_data];
@@ -348,7 +350,7 @@ static int graphics_draw_tile(int tile, int x, int y){
         );
     }
     default:
-        VERROR("Invalid tile type %i", (int) TILE_TYPE(tile));
+        ETODO(TILETYPE);
         return 1;
     }
 }
@@ -365,7 +367,7 @@ static void graphics_draw_map(){
         for(int j = 0; j < jrange; j+=1){
             const Tile tile = get_tile(game.map, j + joffset, i + ioffset);
             if(graphics_draw_tile(tile, j * TILEW - (game.camera.x % TILEW), i * TILEH - (game.camera.y % TILEH))){
-                VERROR("Could not draw tile %16llx", (long long) tile);
+                ERROR("Could not draw tile %16llx", (long long) tile);
             }
         }
     }
@@ -402,7 +404,7 @@ void draw(){
         }
     }
     else{
-        VERROR("Invalid draw_mode %i", game.draw_mode);
+        ERROR("Invalid draw_mode %i", game.draw_mode);
     }
 
 }

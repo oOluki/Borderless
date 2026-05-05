@@ -4,9 +4,22 @@
 #include "begin.h"
 #include "maps.h"
 
+typedef union feed_str_arg_t
+{
+    union
+    {
+        const char*  str;
+        int          i;
+        unsigned int u;
+    } arg[3];
+} feed_str_arg_t;
+
+
 int _str_len(const char* str);
 
-int feed_str(char* output, const char* input, int max_len);
+int _feed_str(char* output, int max_len, const char* input, const feed_str_arg_t args);
+
+#define feed_str(OUTPUT, MAX_LEN, INPUT, ...) _feed_str((OUTPUT), (MAX_LEN), (INPUT), (feed_str_arg_t){__VA_ARGS__})
 
 int in_bounds(const Rect rect, int x, int y);
 

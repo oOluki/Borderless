@@ -3,6 +3,8 @@
 
 #include "util.h"
 
+extern Game game;
+
 #define MAXBFSQUEUESIZE MAXMAPSIZE
 
 static int  bfs_result[MAXBFSQUEUESIZE];
@@ -10,17 +12,46 @@ static Node bfs_queue[MAXBFSQUEUESIZE];
 
 
 int _str_len(const char* str){
+    if(str == NULL) return 0;
     int len = 0;
     for(; str[len]; len+=1);
     return len;
 }
 
-int feed_str(char* output, const char* input, int max_len){
+int _feed_str(char* output, int max_len, const char* input, const feed_str_arg_t args){
+    int arg = 0;
+    int len = 0;
+    
     int i = 0;
-    for(; input[i] && i < max_len; i+=1){
-        output[i] = input[i];
+    while(input[i]){
+        for(; input[i] && len < max_len && input[i] != '%'; i+=1){
+            output[len] = input[i];
+            len += 1;
+        }
+        if(input[i] == '%'){
+            i+=1;
+            if(arg >= ARLEN(args.arg)){
+                ERROR("formated string %s contains more formats %c than supported(%i)", input, '%', (int) ARLEN(args.arg));
+            }
+            else switch (input[i])
+            {
+            case '\0':
+                break;
+            case 's':
+                for(int j = 0; args.arg[arg].str[j] && len < max_len; j+=1){
+                    output[len] = args.arg[arg].str[j];
+                    len += 1;
+                }
+                arg+=1;
+                break;
+            default:
+                ERROR("format %c not implemented\n", input[i]);
+                break;
+            }
+            i+=1;
+        }
     }
-    return i;
+    return len;
 }
 
 int in_bounds(const Rect rect, int x, int y){

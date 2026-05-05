@@ -19,14 +19,29 @@
 
 #define GAME_NAME "Borderless"
 
-#define ERROR(MSG) fprintf(stderr, "[ERROR] " __FILE__ ":%i:0: " MSG "\n", __LINE__)
-#define VERROR(MSG, ...) fprintf(stderr, "[ERROR] " __FILE__ ":%i:0: " MSG "\n", __LINE__, __VA_ARGS__)
 
+#define REPORT(WHAT, ...) do{\
+        fprintf(stderr, "[" #WHAT "] " __FILE__ ":%i:0: ", __LINE__);\
+        fprintf(stderr, ""  __VA_ARGS__);\
+        fprintf(stderr, "\n");\
+    } while(0)
+#define REPORT_AND_QUIT(WHAT, ...) do{\
+        fprintf(stderr, "[" #WHAT "] " __FILE__ ":%i:0: ", __LINE__);\
+        fprintf(stderr, ""  __VA_ARGS__);\
+        fprintf(stderr, "\n");\
+        game.active = 0;\
+    } while(0)
+#define ERROR(...) REPORT_AND_QUIT(ERROR, __VA_ARGS__)
+#define TODO(...) REPORT_AND_QUIT(TODO, __VA_ARGS__)
+#define ETODO(WHAT) if(WHAT < WHAT ## _COUNT && WHAT >= 0) REPORT_AND_QUIT(TODO, #WHAT " %i", WHAT)
 
-#define DEBUG_ERROR(MSG) DEBUG_CODE(ERROR(MSG))
-#define DEBUG_VERROR(MSG, ...) DEBUG_CODE(VERROR(MSG, __VA_ARGS__))
+#define DEBUG_REPORT(WHAT, ...) DEBUG_CODE(REPORT(WHAT, __VA_ARGS__))
+#define DEBUG_ERROR(...) DEBUG_REPORT(ERROR, __VA_ARGS__)
 
 #define DEBUG_ASSERT(CONDITION) DEBUG_CODE(assert(CONDITION))
+
+#define ENUM_CASE(X) case X: return #X;
+
 
 #define MIN(X, Y) (((X) < (Y))? (X) :  (Y))
 #define MAX(X, Y) (((X) > (Y))? (X) :  (Y))
@@ -158,6 +173,8 @@ enum Options{
     OPTION_RELEASE,
     OPTION_LOOT,
 
+    OPTION_LOAD_MAP,
+
     // for counting purposes
     OPTION_COUNT
 };
@@ -275,6 +292,7 @@ typedef struct Game{
     //Pixel           mouse_canvas[TILEW * TILEH];
 
     Map             map;
+    int             map_number;
 
     Entity          player;
 

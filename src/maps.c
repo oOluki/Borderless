@@ -3,11 +3,23 @@
 
 #include "game.h"
 #include "maps.h"
+#include "assets.h"
 
 
 
 static Tile mapbuff[MAXMAPSIZE];
 
+const char* get_map_str(int MAP){
+    switch (MAP)
+    {
+    case MAP_0:     return "MAP_0";
+    case MAP_TEST:  return "MAP_TEST";
+    
+    default:
+        ETODO(MAP);
+        return NULL;
+    }
+}
 
 int place_tile(Map* map, const Tile tile, int x, int y){
     const int inbounds = !(x < 0 || y < 0 || x >= map->w || y >= map->h);
@@ -45,9 +57,26 @@ static inline int load_entity(int type, int x, int y, int state, int orientation
     return 0;
 }
 
-static Tile load_tile_component(int tile, int map_x, int map_y, const unsigned char* src){
+static Tile load_tile_component(int TILE, int map_x, int map_y, const unsigned char* src){
 
-    switch (tile)
+    if(TILE >= TILE_FIRST_ENTITY){
+
+        if(game.entity_count + 1 >= ARLEN(game.entities)){
+            ERROR("could not load entity, entity overflow\n");
+            return MK_TILE(TILETYPE_ERROR, 0);
+        }
+        game.entities[game.entity_count++] = (Entity){
+            .id = ENTITY_ENEMY1,
+            .x = map_x * TILEW,
+            .y = map_y * TILEH,
+            .orientation = src[map_x * map_y + TILE - TILE_FIRST_ENTITY] >> 6,
+            .state  = STATE_ALIVE,
+            .weapon = src[map_x * map_y + TILE - TILE_FIRST_ENTITY] & ((1 << 6) - 1)
+        };
+        return MK_TILE(TILETYPE_ENTITY, game.entity_count - 1);
+    }
+
+    switch (TILE)
     {
     case TILE_EMPTY:
         return MK_TILE(TILETYPE_NONE, TILE_EMPTY);
@@ -64,34 +93,24 @@ static Tile load_tile_component(int tile, int map_x, int map_y, const unsigned c
             .id = ENTITY_PLAYER,
             .x = map_x * TILEW,
             .y = map_y * TILEH,
-            .orientation = tile - TILE_PLAYER_FACE_UP,
+            .orientation = TILE - TILE_PLAYER_FACE_UP,
             .state = STATE_ALIVE
         };
         return MK_TILE(TILETYPE_PLAYER, 0);
-
-    case TILE_FIRST_ENTITY:
-        if(game.entity_count + 1 >= ARLEN(game.entities)){
-            ERROR("could not load entity, entity overflow\n");
-            return MK_TILE(TILETYPE_ERROR, 0);
-        }
-        game.entities[game.entity_count++] = (Entity){
-            .id = ENTITY_ENEMY1,
-            .x = map_x * TILEW,
-            .y = map_y * TILEH,
-            .orientation = src[map_x * map_y + tile - TILE_FIRST_ENTITY] >> 6,
-            .state = STATE_ALIVE,
-            .items = src[map_x * map_y + tile - TILE_FIRST_ENTITY] & ((1 << 6) - 1)
-        };
-        return MK_TILE(TILETYPE_ENTITY, game.entity_count - 1);
     
     default:
-        VERROR("Invalid tile %i", tile);
+        ETODO(TILE);
         return MK_TILE(TILETYPE_ERROR, 0);
     }
 }
 
 
-int load_map(const LoadMap map){
+int load_map(int _map){
+
+    if(_map < 0 || _map >= MAP_COUNT)
+        ERROR("map %i overflows maps array", _map);
+
+    const LoadMap map = maps[_map];
 
     if(map.w < 0 || map.h < 0) return 1;
 
@@ -118,6 +137,7 @@ int load_map(const LoadMap map){
             dest->map[i * dest->w + j] = load_tile_component(map.map[i * map.w + j], j, i, map.map);
         }
     }
+
     return 0;
 }
 

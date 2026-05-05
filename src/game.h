@@ -7,6 +7,8 @@ int rng(int optional_seed);
 
 void draw();
 
+const char* get_weapon_str(int weapon);
+
 int level_update(int cmd);
 
 int option_select_update(int cmd);
@@ -20,7 +22,7 @@ int _load_options(const int* options);
 // \returns the number of options
 int interact_with(int* output, const Tile _tile);
 
-int choose_option(int option, void* context, int* response);
+int choose_option(int option, void* context, int last_option);
 
 int game_init(Pixel* draw_canvas_pixels, int draw_canvas_w, int draw_canvas_h);
 
