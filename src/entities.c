@@ -172,10 +172,6 @@ int update_entity(Entity* self){
         return 0;
     }
 
-    if(!(self->state & STATE_ALERTED) && !collide_rect(game.camera, (Rect){self->x, self->y, TILEW, TILEH})){
-        return 0;
-    }
-
     if(self->state & STATE_ALERTED){
         if((ABS(self->x - game.player.x) <= TILEW) && (ABS(self->y - game.player.y) <= TILEH)){
             game.player.state &= ~STATE_CLEAN_ON_KILL;

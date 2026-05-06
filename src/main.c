@@ -253,7 +253,6 @@ int main(int argc, char** argv){
 
 // ==============================[end of parsing command line arguments]==========================================
 
-    printf("camera = (%i, %i, %i, %i)\n", game.camera.x, game.camera.y, game.camera.w, game.camera.h);
 
     game.update(CMD_DISPLAY);
 
@@ -284,20 +283,18 @@ int main(int argc, char** argv){
         fclose(input);
         input = NULL;
     }
-    for(int last_cmd = CMD_NONE; game.active; ){
+    while(game.active){
 
         int cmd = game.get_cmd();
 
         for(; cmd != CMD_FINNISHED && cmd != CMD_ERROR; cmd = game.get_cmd()){
 
-            if(output && cmd != CMD_NONE && (cmd != CMD_FINNISHED || last_cmd != CMD_FINNISHED))
+            if(output && cmd != CMD_NONE)
                 fputc((int) get_cmd_char(cmd), output);
-
-            last_cmd = cmd;
 
             if(game.update(cmd)) break;
         }
-        if(output && cmd != CMD_NONE && (cmd != CMD_FINNISHED || last_cmd != CMD_FINNISHED))
+        if(output && cmd != CMD_NONE)
             fputc((int) get_cmd_char(cmd), output);
 
         game.update_subsystem();
