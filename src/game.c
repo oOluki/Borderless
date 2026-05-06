@@ -240,7 +240,7 @@ int level_update(int cmd){
     game.camera.x = (game.player.x + TILEW / 2) - game.camera.w / 2;
     game.camera.y = (game.player.y + TILEH / 2) - game.camera.h / 2;
 
-    for(int i = 0; i < game.entity_count; ){
+    if(!game.debug || cmd == CMD_UPDATE) for(int i = 0; i < game.entity_count; ){
         if(update_entity(&game.entities[i])){
             for(int j = i + 1; j < game.entity_count; j+=1){
                 game.entities[j - 1] = game.entities[j];
@@ -252,8 +252,6 @@ int level_update(int cmd){
     }
 
     draw();
-
-    game.debug = 0;
 
     return 0;
 }

@@ -175,7 +175,10 @@ int update_entity(Entity* self){
         if((ABS(self->x - game.player.x) <= TILEW) && (ABS(self->y - game.player.y) <= TILEH)){
             game.player.state &= ~STATE_CLEAN_ON_KILL;
         }
-        else if(in_camera(RECT(self->x, self->y)) && is_target_visible_from(game.map, game.player.x, game.player.y, self->x, self->y, -1.0f)){
+        else if(
+            in_camera(RECT(self->x, self->y, TILEW, TILEH)) &&
+            is_target_visible_from(game.map, game.player.x, game.player.y, self->x, self->y, -1.0f)
+        ){
             if(!move_towards_visible(self, game.player.x, game.player.y)){ // diagonal case...
                 const int dx = (self->x < game.player.x)? TILEW : -TILEW;
                 const int dy = (self->y < game.player.y)? TILEH : -TILEH;

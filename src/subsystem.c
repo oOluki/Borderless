@@ -85,14 +85,17 @@ static int read_key() {
 
 static inline void report(){
     
+    printf("\n");
     print_mem();
     printf(
+        "debug: %i\n"
         "TILE(w, h) = (%i, %i)\n"
         "entities: %i\n"
         "camera(x, y, w, h) = (%i, %i, %i, %i)\n"
         "display mode = %s\n"
         "cursor(x, y) = (%i, %i)\n"
         "player(x, y, state) = (%i, %i, %i)\n",
+        game.debug,
         TILEW, TILEH,
         game.entity_count,
         game.camera.x, game.camera.y, game.camera.w, game.camera.h,
@@ -366,8 +369,10 @@ static int handle_keyup(SDL_Keycode key){
     case SDLK_s:
         user_data.movement &= ~USR_DOWN;
         return (!user_data.continuos)? CMD_DOWN : CMD_NONE;
-    case SDLK_RIGHT:
     case SDLK_d:
+        if(user_data.ctrl)
+            return CMD_DEBUG;
+    case SDLK_RIGHT:
         user_data.movement &= ~USR_RIGHT;
         return (!user_data.continuos)? CMD_RIGHT : CMD_NONE;
     case SDLK_c:
