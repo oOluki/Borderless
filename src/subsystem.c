@@ -6,6 +6,12 @@
 #include "input.h"
 #include "string.h"
 
+static const char* const draw_mode_str[] = {
+    [DRAW_MODE_NONE]    = "DRAW_MODE_NONE",
+    [DRAW_MODE_GRAPHIC] = "DRAW_MODE_GRAPHIC",
+    [DRAW_MODE_CONSOLE] = "DRAW_MODE_CONSOLE"
+};
+
 static char ascii_map[] = "@%#*+=-:. ";
 
 static int getascii_color_index(Color color){
@@ -47,8 +53,7 @@ static inline void print_mem() {
 #endif // END OF #ifdef __linux__
 
 
-
-#if defined(__linux__) || defined(__APPLE__)
+#if (defined(__linux__) || defined(__APPLE__)) && !defined(MINIMAL_SETUP)
 
 #include <unistd.h>
 #include <termios.h>
@@ -66,7 +71,7 @@ static int read_key() {
     return c;
 }
 
-#elif defined(_WIN32)
+#elif defined(_WIN32) && !defined(MINIMAL_SETUP)
 
 #include <conio.h>
 
@@ -77,6 +82,25 @@ static int read_key() {
 #define read_key() fgetc(stdin)
 
 #endif // read_key definition
+
+static inline void report(){
+    
+    print_mem();
+    printf(
+        "TILE(w, h) = (%i, %i)\n"
+        "entities: %i\n"
+        "camera(x, y, w, h) = (%i, %i, %i, %i)\n"
+        "display mode = %s\n"
+        "cursor(x, y) = (%i, %i)\n"
+        "player(x, y, state) = (%i, %i, %i)\n",
+        TILEW, TILEH,
+        game.entity_count,
+        game.camera.x, game.camera.y, game.camera.w, game.camera.h,
+        (game.draw_mode < ARLEN(draw_mode_str))? draw_mode_str[game.draw_mode] : "UNKWOWN",
+        game.mousex, game.mousey,
+        game.player.x, game.player.y, game.player.state
+    );
+}
 
 int initascii_subsystem() {
 
@@ -100,6 +124,7 @@ int updateascii_subsystem(){
             }
             putchar('\n');
         }
+        putchar('\n');
         fflush(stdout);
     }
 
@@ -108,13 +133,21 @@ int updateascii_subsystem(){
 
 int getascii_cmd(){
 
+    static int repeat = 0;
+    static int cmd = CMD_NONE;
+
+    if(repeat > 0){
+        repeat -= 1;
+        return cmd;
+    }
+
     int c = read_key();
 
     if(c == ':'){
         putchar(c);
         fflush(stdout);
         c = read_key();
-        printf("\r");
+        putchar('\r');
         switch (c)
         {
         case 'l':
@@ -138,10 +171,14 @@ int getascii_cmd(){
 #endif // END OF #ifdef SUPPORT_SDL
             return CMD_NONE;
         case 'r':
-            print_mem();
+            report();
             return CMD_NONE;
         case 'h':
-            printf("commands are sequence of characters where each character represents one command, valid characters are:\n");
+            printf(
+                "commands are sequence of characters where each character represents one command,"
+                "if a character is preffixed by a number (n) than that character's command will be repeated n times, "
+                "valid characters are:\n"
+            );
             for(int i = 0; i < CMD_COUNT; i+=1){
                 printf("\t%c: %s\n", get_cmd_char(i), get_cmd_str(i));
             }
@@ -162,10 +199,43 @@ int getascii_cmd(){
     }
     else if(c == EOF) return CMD_QUIT;
 
-    const int cmd = get_char_cmd(c);
+    if(c <= '9' && c >= '1'){
+        repeat = 0;
+        int max_size = 0;
+        for(int size = 0; ; ){
+            for(; c <= '9' && c >= '0'; c = read_key()){
+                if(repeat * 10 + (c - '0') < 1000)
+                    repeat = repeat * 10 + (c - '0');
+                printf("\r");
+                for(int i = 0; i < max_size; i+=1)
+                    putchar(' ');
+                printf("\r%i", repeat);
+                fflush(stdout);
+                size += 1;
+            }
+            // backslash
+            if(size && (c == 127 || c == '\b')){
+                repeat /= 10;
+                //if(repeat == 0)
+                //    return CMD_NONE;
+                printf("\r");
+                for(int i = 0; i < max_size; i+=1)
+                    putchar(' ');
+                printf("\r%i", repeat);
+                fflush(stdout);
+                c = read_key();
+            }
+            else break;
+            max_size = MAX(max_size, size);
+        }
+        repeat -= !!repeat;
+    }
+
+    cmd = get_char_cmd(c);
 
     if(cmd == CMD_ERROR){
-        REPORT(REPORT, "no cmd for char %u '%c', enter :h for little help message\n", c, c);
+        REPORT(REPORT, "no cmd for char %i '%c', enter :h for little help message\n", c, c);
+        repeat = 0;
         return CMD_NONE;
     }
 
@@ -179,11 +249,6 @@ int getascii_cmd(){
 #include <SDL2/SDL.h>
 
 #define WINDOW2SCREEN_SCALE_PRECISION 1000
-
-extern int initascii_subsystem();
-extern int closeascii_subsystem();
-extern int updateascii_subsystem();
-extern int getascii_cmd();
 
 static struct UserData{
 
@@ -394,6 +459,7 @@ static int handle_keydown(SDL_Keycode key){
             game.close_subsystem  = closeascii_subsystem;
             game.update_subsystem = updateascii_subsystem;
             game.get_cmd          = getascii_cmd;
+            game.draw_mode        = DRAW_MODE_CONSOLE;
             game.init_subsystem();
             game.update(CMD_DISPLAY);
             game.update_subsystem();
@@ -402,23 +468,7 @@ static int handle_keydown(SDL_Keycode key){
         return CMD_UPDATE;
     case SDLK_KP_ENTER:
         if(user_data.ctrl){
-            print_mem();
-            printf(
-                "\n%"PRIu64" ms; <-> %.2f fps\n"
-                "TILE(w, h) = (%i, %i)\n"
-                "ctrl: %i, continuous: %i\n"
-                "entities: %i\n"
-                "camera(x, y, w, h) = (%i, %i, %i, %i)\n"
-                "cursor(x, y) = (%i, %i)\n"
-                "player(x, y, state) = (%i, %i, %i)\n",
-                user_data.dt, 1000.0f / (0.0f + user_data.dt),
-                TILEW, TILEH,
-                user_data.ctrl, user_data.continuos,
-                game.entity_count,
-                game.camera.x, game.camera.y, game.camera.w, game.camera.h,
-                game.mousex, game.mousey,
-                game.player.x, game.player.y, game.player.state
-            );
+            report();
         }
         return CMD_NONE;
     case SDLK_e:

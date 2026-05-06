@@ -9,12 +9,16 @@ int updateascii_subsystem();
 
 int getascii_cmd();
 
-int initsdl_subsystem();
+#ifdef SUPPORT_SDL
 
-int closesdl_subsystem();
+    int initsdl_subsystem();
 
-int getsdl_cmd();
+    int closesdl_subsystem();
 
-int updatesdl_subsystem();
+    int getsdl_cmd();
+
+    int updatesdl_subsystem();
+
+#endif // END OF #ifdef SUPPORT_SDL
 
 #endif // =====================  END OF FILE SUBSYSTEM_HEADER ===========================

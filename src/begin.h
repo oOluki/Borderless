@@ -6,7 +6,7 @@
 #include <math.h>
 #include <assert.h>
 
-#ifndef DONT_SUPPORT_SDL
+#if defined(DONT_SUPPORT_SDL) && !defined(MINIMAL_SETUP)
     #define SUPPORT_SDL 1
 #endif
 
