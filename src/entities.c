@@ -1,9 +1,8 @@
 #ifndef ENTITIES_C
 #define ENTITIES_C
 
-#include "game.h"
+#include "entities.h"
 #include "util.h"
-#include "renderer.h"
 
 static inline int facing_entity(int x, int y, int orientation, int targetx, int targety){
     switch (orientation)
@@ -176,7 +175,7 @@ int update_entity(Entity* self){
         if((ABS(self->x - game.player.x) <= TILEW) && (ABS(self->y - game.player.y) <= TILEH)){
             game.player.state &= ~STATE_CLEAN_ON_KILL;
         }
-        else if(is_target_visible_from(game.map, game.player.x, game.player.y, self->x, self->y, -1.0f)){
+        else if(in_camera(RECT(self->x, self->y)) && is_target_visible_from(game.map, game.player.x, game.player.y, self->x, self->y, -1.0f)){
             if(!move_towards_visible(self, game.player.x, game.player.y)){ // diagonal case...
                 const int dx = (self->x < game.player.x)? TILEW : -TILEW;
                 const int dy = (self->y < game.player.y)? TILEH : -TILEH;
@@ -232,7 +231,7 @@ int update_entity(Entity* self){
 
     const int can_see_player = is_target_visible_from(game.map, game.player.x, game.player.y, self->x, self->y, -1.0f);
 
-    if(can_see_player){
+    if(can_see_player && in_camera(RECT(self->x, self->y))){
         self->targetx = game.player.x;
         self->targety = game.player.y;
         self->state |= STATE_ALERTED;

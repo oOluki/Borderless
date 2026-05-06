@@ -4,6 +4,9 @@
 #include "begin.h"
 #include "maps.h"
 
+//      X, Y, W, H
+#define RECT(...) ((Rect){__VA_ARGS__})
+
 typedef union feed_str_arg_t
 {
     union
@@ -26,11 +29,16 @@ int _feed_str(char* output, int max_len, const char* input, const feed_str_arg_t
         game.tmp_message_frames = (FRAMES);\
     } while(0)
 
+// returns a rect with x, y at the top left corner and positive w, h
+Rect standardize_rect(Rect rect);
+
 int in_bounds(const Rect rect, int x, int y);
 
 int in_sbounds(const Surface surface, int x, int y);
 
 int in_mbounds(const Map map, int x, int y);
+
+int in_camera(Rect rect);
 
 int collide_rect(const Rect rect1, const Rect rect2);
 

@@ -86,6 +86,18 @@ int _feed_str(char* output, int max_len, const char* input, const feed_str_arg_t
     return len;
 }
 
+Rect standardize_rect(Rect rect){
+    if(rect.w < 0){
+        rect.w *= -1;
+        rect.x -= rect.w;
+    }
+    if(rect.h < 0){
+        rect.h *= -1;
+        rect.y -= rect.h;
+    }
+    return rect;
+}
+
 int in_bounds(const Rect rect, int x, int y){
     return (x > rect.x && x < rect.x + rect.w) && (y > rect.y && y < rect.y + rect.h);
 }
@@ -96,6 +108,13 @@ int in_sbounds(const Surface surface, int x, int y){
 
 int in_mbounds(const Map map, int x, int y){
     return (x > -1 && x < map.w) && (y > -1 && y < map.h);
+}
+
+int in_camera(Rect rect){
+    rect = standardize_rect(rect);
+    const int x = rect.x - game.camera.x;
+    const int y = rect.y - game.camera.y;
+    return (x + rect.w >= 0 && x < game.camera.w) && (y + rect.h >= 0 && y < game.camera.h);
 }
 
 int collide_rect(const Rect rect1, const Rect rect2){

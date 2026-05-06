@@ -2,8 +2,6 @@
 #define ENTITIES_HEADER
 
 #include "game.h"
-#include "util.h"
-#include "renderer.h"
 
 int get_weapon_range(int weapon);
 
