@@ -29,7 +29,7 @@ int place_tile(Map* map, const Tile tile, int x, int y){
 }
 
 Tile get_tile(const Map map, int x, int y){
-    return (x < 0 || y < 0 || x >= map.w || y >= map.h)? TILE_EMPTY : map.map[y * map.w + x];
+    return (x < 0 || y < 0 || x >= map.w || y >= map.h)? TILE_NONE : map.map[y * map.w + x];
 }
 
 void move_tile(int x, int y, int nx, int ny){
@@ -44,7 +44,7 @@ void move_tile(int x, int y, int nx, int ny){
         game.player.x = nx * TILEW;
         game.player.y = ny * TILEH;
     }
-    place_tile(&game.map, TILE_EMPTY, x, y);
+    place_tile(&game.map, TILE_NONE, x, y);
 }
 
 
@@ -78,8 +78,8 @@ static Tile load_tile_component(int TILE, int map_x, int map_y, const unsigned c
 
     switch (TILE)
     {
-    case TILE_EMPTY:
-        return MK_TILE(TILETYPE_NONE, TILE_EMPTY);
+    case TILE_NONE:
+        return MK_TILE(TILETYPE_NONE, TILE_NONE);
     case TILE_WALL:
         return MK_TILE(TILETYPE_TILE, TILE_WALL);
     case TILE_SWALL:

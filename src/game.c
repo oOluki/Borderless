@@ -67,7 +67,73 @@ const char* get_weapon_str(int weapon){
     }
 }
 
+static int special_signal_handle(int cmd){
+
+    // to bo safe game.signal will be stored in signal and set to zero
+    // to avoid forgetting setting game.signal to 0, and signal should
+    // be used as the game.signal value
+    const int signal = game.signal;
+    game.signal = 0;
+
+    if(cmd == CMD_SPECIAL_SIGNAL){
+        if(signal < 3){
+            game.signal = signal + 1;
+            return 0;
+        }
+        else {
+            message(1, "no signal starts with 2 signals");
+            return 0;
+        }
+    } else if(cmd == CMD_NONE){
+        game.signal = signal;
+        return 0;
+    }
+
+    if(cmd == CMD_DISPLAY){
+        if(signal == 3){ // clear marks
+            const int ioffset = game.camera.y / TILEH;
+            const int joffset = game.camera.x / TILEW;
+            const int irange  = 1 + game.camera.h / TILEH;
+            const int jrange  = 1 + game.camera.w / TILEW;
+
+            for(int i = 0; i < irange; i+=1){
+                for(int j = 0; j < jrange; j+=1){
+                    const Tile tile = get_tile(game.map, j + joffset, i + ioffset);
+                    if(TILE_MARK(tile)){ // remove mark
+                        place_tile(&game.map, tile & ~TILE_MARK_MASK, j + joffset, i + ioffset);
+                    }
+                }
+            }
+        }
+        else if(signal == 2){
+            if(game.draw_mode == DRAW_MODE_GRAPHIC)
+                game.draw_mode = DRAW_MODE_NONE;
+            else
+                game.draw_mode = DRAW_MODE_GRAPHIC;
+        }
+        else { // display state in console mode, regardless of what draw mode game is in
+            if(game.draw_mode == DRAW_MODE_CONSOLE)
+                game.draw_mode = DRAW_MODE_NONE;
+            else
+                game.draw_mode = DRAW_MODE_CONSOLE;
+        }
+        return 0;
+    }
+    if(cmd == CMD_QUIT){
+        game.active = 0;
+        return 1;
+    }
+    else{
+        message(1, "no signal for %i signals - %s", .arg[0].i = signal, .arg[1].str = get_cmd_str(cmd));
+    }
+    return 1;
+}
+
 static int move_mouse_update(int cmd){
+
+    if(game.signal){
+        return special_signal_handle(cmd);
+    }
 
     switch (cmd)
     {
@@ -92,7 +158,10 @@ static int move_mouse_update(int cmd){
     case CMD_BACK:
         game.update = level_update;
         game.tmp_message_frames = 0;
-        return level_update(CMD_DISPLAY);;
+        return level_update(CMD_DISPLAY);
+    case CMD_SPECIAL_SIGNAL:
+        game.signal = 1;
+        return 0;
     default:
         break;
     }
@@ -122,6 +191,10 @@ static int move_mouse_update(int cmd){
 }
 
 int level_update(int cmd){
+
+    if(game.signal){
+        return special_signal_handle(cmd);
+    }
 
     switch(cmd)
     {
@@ -180,7 +253,7 @@ int level_update(int cmd){
         const int px = game.player.x / TILEW;
         const int py = game.player.y / TILEH;
         const Tile tile = get_tile(game.map, px + dx, py + dy);
-        if(tile == TILE_EMPTY){
+        if(TILE_TYPE(tile) == TILETYPE_NONE){
             move_tile(px, py, px + dx, py + dy);
         }
         else if(TILE_TYPE(tile) == TILETYPE_ENTITY){
@@ -189,7 +262,7 @@ int level_update(int cmd){
             }
             else{
                 const Tile t = get_tile(game.map, px + 2 * dx, py + 2 * dy);
-                if(t == TILE_EMPTY){
+                if(TILE_TYPE(t) == TILETYPE_NONE){
                     move_tile(px + dx, py + dy, px + 2 * dx, py + 2 * dy);
                     move_tile(px, py, px + dx, py + dy);
                 }
@@ -218,11 +291,11 @@ int level_update(int cmd){
         const int px = game.player.x / TILEW;
         const int py = game.player.y / TILEH;
         const Tile tile = get_tile(game.map, px - dx, py - dy);
-        if(tile == TILE_EMPTY){
+        if(TILE_TYPE(tile) == TILETYPE_NONE){
             move_tile(px, py, px - dx, py - dy);
             if(game.player.state & STATE_CARRING){
                 const Tile t = get_tile(game.map, px + dx, py + dy);
-                if(t != TILE_EMPTY){
+                if(TILE_TYPE(t) != TILETYPE_NONE){
                     move_tile(px + dx, py + dy, px, py);
                 }
                 else{
@@ -232,6 +305,9 @@ int level_update(int cmd){
         }
     }
         break;
+    case CMD_SPECIAL_SIGNAL:
+        game.signal = 1;
+        return 0;
     
     default:
         return 0;
@@ -257,6 +333,10 @@ int level_update(int cmd){
 }
 
 int option_select_update(int cmd){
+
+    if(game.signal){
+        return special_signal_handle(cmd);
+    }
 
     if(game.option_count <= 0){
         return change_update(level_update, .cmd = CMD_DISPLAY);
@@ -287,6 +367,9 @@ int option_select_update(int cmd){
             }
         }
         return 0;
+    case CMD_SPECIAL_SIGNAL:
+        game.signal = 1;
+        return 0;
     
     default:
         break;
@@ -305,6 +388,10 @@ static inline void load_map_and_center_camera(int map){
 }
 
 static int map_select_update(int cmd){
+
+    if(game.signal){
+        return special_signal_handle(cmd);
+    }
 
     switch (cmd)
     {
@@ -333,6 +420,9 @@ static int map_select_update(int cmd){
         game.map_number = (game.map_number <= 0)? MAP_COUNT - 1 : game.map_number - 1;
         load_map_and_center_camera(game.map_number);
         break;
+    case CMD_SPECIAL_SIGNAL:
+        game.signal = 1;
+        return 0;
     
     default:
         break;
@@ -417,7 +507,8 @@ int choose_option(int OPTION, void* context){
         const int py = entity->y / TILEH;
         const Tile tile = get_tile(game.map, px + dx, py + dy);
         if(TILE_TYPE(tile) == TILETYPE_ENTITY){
-            if(get_tile(game.map, px + 2 * dx, py + 2 * dy) == TILE_EMPTY){
+            const Tile t = get_tile(game.map, px + 2 * dx, py + 2 * dy);
+            if(TILE_TYPE(t) == TILETYPE_NONE){
                 move_tile(px + dx, py + dy, px + 2 * dx, py + 2 * dy);
             }
             game.entities[TILE_DATA(tile)].state &= ~STATE_GRABBED;

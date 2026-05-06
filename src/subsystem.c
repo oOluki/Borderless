@@ -83,7 +83,7 @@ static int read_key() {
 
 #endif // read_key definition
 
-static inline void report(){
+void report(){
     
     printf("\n");
     print_mem();
@@ -347,6 +347,10 @@ static inline int get_cmd_from_movement(int movement){
 static int handle_keyup(SDL_Keycode key){
     switch (key)
     {
+    case SDLK_k:
+    case SDLK_LALT:
+    case SDLK_RALT:
+        return CMD_SPECIAL_SIGNAL;
     case SDLK_q:
         return CMD_QUIT;
     case SDLK_KP_ENTER:

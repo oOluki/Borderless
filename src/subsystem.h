@@ -1,6 +1,8 @@
 #ifndef SUBSYSTEM_HEADER
 #define SUBSYSTEM_HEADER
 
+void report();
+
 int initascii_subsystem();
 
 int closeascii_subsystem();

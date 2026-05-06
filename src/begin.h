@@ -104,8 +104,8 @@ enum DrawModes{
 };
 
 enum Tiles{
-    TILE_EMPTY = 0,
-    TILE_FIRST_TILE_ID = TILE_EMPTY,
+    TILE_NONE = 0,
+    TILE_FIRST_TILE_ID = TILE_NONE,
     TILE_WALL,
     TILE_SWALL,
 
@@ -329,6 +329,7 @@ typedef struct Game{
     void*           user_data;
 
     int (*update)(int cmd);
+    int           signal;
 
     int (*init_subsystem)();
     int (*close_subsystem)();

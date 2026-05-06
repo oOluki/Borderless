@@ -61,7 +61,7 @@ int main(int argc, char** argv){
 
     int draw_mode_changed = 0;
 
-    int display_final_state = 0;
+    int report_final_state = 0;
 
     int status = 0;
 
@@ -76,7 +76,7 @@ int main(int argc, char** argv){
                 "\tc: draw in console simple mode\n"
                 "\tg: draw in graphical mode\n"
                 "\tn: don't draw at all\n"
-                "\tf: draw final state (even if the n flag is active)\n"
+                "\tr: give a final report\n"
                 "\ti: take input from stdin\n"
                 "\to: print commands to stdout\n"
                 "kwargs can be:\n"
@@ -212,8 +212,8 @@ int main(int argc, char** argv){
                     }
                     output = stdout;
                     break;
-                case 'f':
-                    display_final_state = 1;
+                case 'r':
+                    report_final_state = 1;
                     break;
                 
                 default:
@@ -325,16 +325,14 @@ int main(int argc, char** argv){
 
             if(game.update(cmd)) break;
         }
-        if(output)
+        if(output && cmd == CMD_FINNISHED)
             record(output, cmd, 20, 1);
 
         game.update_subsystem();
     }
 
-    if(display_final_state) {
-	    game.draw_mode = DRAW_MODE_CONSOLE;
-	    draw();
-        game.update_subsystem();
+    if(report_final_state) {
+        report();
     }
 
     defer:

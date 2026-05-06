@@ -22,7 +22,7 @@ char get_cmd_char(int CMD){
     case CMD_RIGHT:             return 'd';
     case CMD_LEFT:              return 'a';
     case CMD_DOWN:              return 's';
-    case CMD_SPECIAL_SIGNAL:    return '^';
+    case CMD_SPECIAL_SIGNAL:    return '*';
     case CMD_FINNISHED:         return '\n';
     default:       ETODO(CMD);  return '?';
     }
@@ -46,7 +46,8 @@ int get_char_cmd(int _char){
     case 'd':   return CMD_RIGHT;
     case 'a':   return CMD_LEFT;
     case 's':   return CMD_DOWN;
-    case '^':   return CMD_SPECIAL_SIGNAL;
+    case '*':
+    case '#':   return CMD_SPECIAL_SIGNAL;
     case EOF:
     case '\0':
     case 'f':
