@@ -1,1 +1,4 @@
-in debug mode
+fixed test          
+changed deprecated flag f (draw final state) for r (report final state)
+to draw the game at any point use the signals:  
+***r -> clears all marks

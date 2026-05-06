@@ -90,17 +90,12 @@ static int special_signal_handle(int cmd){
     }
 
     if(cmd == CMD_DISPLAY){
-        if(signal == 3){ // clear marks
-            const int ioffset = game.camera.y / TILEH;
-            const int joffset = game.camera.x / TILEW;
-            const int irange  = 1 + game.camera.h / TILEH;
-            const int jrange  = 1 + game.camera.w / TILEW;
-
-            for(int i = 0; i < irange; i+=1){
-                for(int j = 0; j < jrange; j+=1){
-                    const Tile tile = get_tile(game.map, j + joffset, i + ioffset);
+        if(signal == 3){ // clear all marks
+            for(int i = 0; i < game.map.h; i+=1){
+                for(int j = 0; j < game.map.w; j+=1){
+                    const Tile tile = get_tile(game.map, j, i);
                     if(TILE_MARK(tile)){ // remove mark
-                        place_tile(&game.map, tile & ~TILE_MARK_MASK, j + joffset, i + ioffset);
+                        place_tile(&game.map, tile & ~TILE_MARK_MASK, j, i);
                     }
                 }
             }
