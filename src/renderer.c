@@ -128,7 +128,7 @@ int copy_raw(Surface surface, const unsigned char* sprite, int stride, int sprit
     if(x >= surface.w || y >= surface.h || x < -spritew || y < -spriteh) return 0;
 
     if(x < 0){
-        jrange = spritew + x;
+        jrange = spritew;
         j0 = -x;
     } else if(x + spritew >= surface.w){
         jrange = surface.w - x;
@@ -139,7 +139,7 @@ int copy_raw(Surface surface, const unsigned char* sprite, int stride, int sprit
     }
 
     if(y < 0){
-        irange = spriteh + y;
+        irange = spriteh;
         i = -y;
     } else if(y + spriteh >= surface.h){
         irange = surface.h - y;
