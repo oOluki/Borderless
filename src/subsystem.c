@@ -30,27 +30,33 @@ static int getascii_color_index(Color color){
 
     return (brightness <= 255)? (brightness * (ARLEN(ascii_map) - 1)) / 255 : (ARLEN(ascii_map) - 1);
 }
-#ifdef __linux__
+
 
 static inline void print_mem() {
     FILE *f = fopen("/proc/self/status", "r");
+
+    if(!f){
+        nomem_report:
+        printf("no memory report available\n");
+        return ;
+    }
+
     char line[256];
+
+    int memfound = 0;
 
     for (int i = 0; fgets(line, sizeof(line), f) && i < 1000; i+=1) {
         if (strncmp(line, "VmRSS:", 6) == 0) {
             printf("%s", line);
+            memfound = 1;
             break;
         }
     }
+    if(!memfound)
+        goto nomem_report;
 
-    fclose(f);
+    if(f) fclose(f);
 }
-#else
-
-#define print_mem() printf("no memory report available\n");
-
-
-#endif // END OF #ifdef __linux__
 
 
 #if (defined(__linux__) || defined(__APPLE__)) && !defined(MINIMAL_SETUP)
