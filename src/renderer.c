@@ -284,8 +284,8 @@ static void console_draw_map(){
     const int joffset   = cx / TILEW;
     const int ilast     = MIN(game.map.h, (game.camera.y + game.camera.h) / TILEH);
     const int jlast     = MIN(game.map.w, (game.camera.x + game.camera.w) / TILEW);
-    const int irange    = ilast - ioffset;
-    const int jrange    = jlast - joffset;
+    const int irange    = 1 + ilast - ioffset;
+    const int jrange    = 1 + jlast - joffset;
 
     printf("    ");
     if(jrange > 0)
