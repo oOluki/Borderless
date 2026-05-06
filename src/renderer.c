@@ -176,8 +176,6 @@ int copy_sprite(Surface surface, const SpriteSheet spritesheet, int x, int y, in
 
 void render_text(Surface surface, int _x, int y, const char* txt, uint32_t color){
 
-    const uint32_t _palette[2] = {0x00000000, color};
-
     if(!txt) txt = "(null)";
 
     int x = _x;

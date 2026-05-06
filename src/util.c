@@ -31,7 +31,7 @@ static int feed_uint(char* output, uint64_t u, int max_len){
         const uint64_t beforedigit = (u / 10) / _10n;
         const uint64_t afterdigit  = u - beforedigit * _10n * 10;
         const uint64_t digit = afterdigit / _10n ;
-        output[len++] = digit + '0';
+        output[len++] = (char) (digit + '0');
     }
 
     return len;

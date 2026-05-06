@@ -314,11 +314,7 @@ int main(int argc, char** argv){
 
         int cmd = game.get_cmd();
 
-        for(
-            unsigned int cmd_line_len = 0;
-            cmd != CMD_FINNISHED && cmd != CMD_ERROR;
-            cmd = game.get_cmd()
-        ){
+        for(; cmd != CMD_FINNISHED && cmd != CMD_ERROR; cmd = game.get_cmd()){
 
             if(output)
                 record(output, cmd, 20, 1);
