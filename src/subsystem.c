@@ -4,6 +4,7 @@
 #include "subsystem.h"
 #include "game.h"
 #include "input.h"
+#include "string.h"
 
 static char ascii_map[] = "@%#*+=-:. ";
 
@@ -23,6 +24,29 @@ static int getascii_color_index(Color color){
 
     return (brightness <= 255)? (brightness * (ARLEN(ascii_map) - 1)) / 255 : (ARLEN(ascii_map) - 1);
 }
+#ifdef __linux__
+
+static inline void print_mem() {
+    FILE *f = fopen("/proc/self/status", "r");
+    char line[256];
+
+    for (int i = 0; fgets(line, sizeof(line), f) && i < 1000; i+=1) {
+        if (strncmp(line, "VmRSS:", 6) == 0) {
+            printf("%s", line);
+            break;
+        }
+    }
+
+    fclose(f);
+}
+#else
+
+#define print_mem() printf("no memory report available\n");
+
+
+#endif // END OF #ifdef __linux__
+
+
 
 #if defined(__linux__) || defined(__APPLE__)
 
@@ -113,6 +137,9 @@ int getascii_cmd(){
             REPORT(REPORT, "can't change to sdl, no sdl support\n");
 #endif // END OF #ifdef SUPPORT_SDL
             return CMD_NONE;
+        case 'r':
+            print_mem();
+            return CMD_NONE;
         case 'h':
             printf("commands are sequence of characters where each character represents one command, valid characters are:\n");
             for(int i = 0; i < CMD_COUNT; i+=1){
@@ -123,6 +150,7 @@ int getascii_cmd(){
                 "\t:l: clears the whole display\n"
                 "\t:d: toggles the display mode\n"
                 "\t:m: toggles the subsystem mode\n"
+                "\t:r: gives a report on game\n"
                 "\t:h: shows this help message\n"
             );
             return CMD_NONE;
@@ -346,10 +374,22 @@ static int handle_keydown(SDL_Keycode key){
         return CMD_UPDATE;
     case SDLK_KP_ENTER:
         if(user_data.ctrl){
-            printf("%"PRIu64" ms; %.2f fps\nctrl: %i\nentities: %i\n",
+            print_mem();
+            printf(
+                "\n%"PRIu64" ms; <-> %.2f fps\n"
+                "TILE(w, h) = (%i, %i)\n"
+                "ctrl: %i, continuous: %i\n"
+                "entities: %i\n"
+                "camera(x, y, w, h) = (%i, %i, %i, %i)\n"
+                "cursor(x, y) = (%i, %i)\n"
+                "player(x, y, state) = (%i, %i, %i)\n",
                 user_data.dt, 1000.0f / (0.0f + user_data.dt),
-                user_data.ctrl,
-                game.entity_count
+                TILEW, TILEH,
+                user_data.ctrl, user_data.continuos,
+                game.entity_count,
+                game.camera.x, game.camera.y, game.camera.w, game.camera.h,
+                game.mousex, game.mousey,
+                game.player.x, game.player.y, game.player.state
             );
             return CMD_NONE;
         }
