@@ -279,6 +279,14 @@ static inline int get_cmd_from_movement(int movement){
 static int handle_keyup(SDL_Keycode key){
     switch (key)
     {
+    case SDLK_q:
+        return CMD_QUIT;
+    case SDLK_KP_ENTER:
+        if(user_data.ctrl)
+            return CMD_NONE;
+    case SDLK_e:
+        return CMD_ENTER;
+    case SDLK_b:
     case SDLK_ESCAPE:
         return CMD_BACK;
     case SDLK_UP:
@@ -297,12 +305,16 @@ static int handle_keyup(SDL_Keycode key){
     case SDLK_d:
         user_data.movement &= ~USR_RIGHT;
         return (!user_data.continuos)? CMD_RIGHT : CMD_NONE;
-    case SDLK_b:
-        return (!user_data.continuos)? CMD_BACK  : CMD_NONE;
     case SDLK_c:
         return (!user_data.continuos)? CMD_LCLICK : CMD_NONE;
     case SDLK_v:
         return (!user_data.continuos)? CMD_RCLICK : CMD_NONE;
+    case SDLK_u:
+        return CMD_UPDATE;
+    case SDLK_r:
+        return CMD_DISPLAY;
+    case SDLK_f:
+        return CMD_FINNISHED;
     case SDLK_l:
         if(user_data.ctrl){
             printf("\x1B[2J\x1B[H\n");
@@ -357,8 +369,24 @@ static int handle_keydown(SDL_Keycode key){
             return CMD_RIGHT;
         }
         return CMD_NONE;
-    case SDLK_f:
-        return user_data.continuos? CMD_FINNISHED : CMD_NONE;
+    case SDLK_c:
+        if(user_data.continuos && user_data.chill > 160){
+            user_data.chill = 0;
+            return CMD_LCLICK;
+        }
+        return CMD_NONE;
+    case SDLK_v:
+        if(user_data.continuos && user_data.chill > 160){
+            user_data.chill = 0;
+            return CMD_RCLICK;
+        }
+        return CMD_NONE;
+    case SDLK_u:
+        if(user_data.continuos && user_data.chill > 160){
+            user_data.chill = 0;
+            return CMD_UPDATE;
+        }
+        return CMD_NONE;
     case SDLK_SPACE:
         if(user_data.ctrl){
             closesdl_subsystem();
@@ -391,9 +419,14 @@ static int handle_keydown(SDL_Keycode key){
                 game.mousex, game.mousey,
                 game.player.x, game.player.y, game.player.state
             );
-            return CMD_NONE;
         }
-        return CMD_ENTER;
+        return CMD_NONE;
+    case SDLK_e:
+        if(user_data.continuos && user_data.chill > 160){
+            user_data.chill = 0;
+            return CMD_ENTER;
+        }
+        return CMD_NONE;
     case SDLK_RCTRL:
     case SDLK_LCTRL:
         user_data.ctrl = 1;

@@ -20,6 +20,31 @@ static int cmp_str(const char* str1, const char* str2, int only_compare_untill_f
     return (*str1 == *str2) || (only_compare_untill_first_null && (!*str1 || !*str2));
 }
 
+static inline int record(FILE* output, int cmd, unsigned int _cmd_line_len, int sep){
+
+    static int cmd_line_len = 0;
+
+    if(!output || cmd == CMD_ERROR || cmd == CMD_NONE)
+        return CMD_NONE;
+
+    if(cmd_line_len > _cmd_line_len){
+        cmd_line_len = 0;
+        fputc((int) get_cmd_char(CMD_FINNISHED), output);
+    }
+    if(cmd == CMD_FINNISHED)
+        return CMD_NONE;
+
+    fputc((int) get_cmd_char(cmd), output);
+
+    if(sep){
+        fputc((int) get_cmd_char(CMD_NONE), output);
+        cmd_line_len += 1;
+    }
+
+    cmd_line_len += 1;
+
+    return cmd;
+}
 
 int main(int argc, char** argv){
 
@@ -265,7 +290,8 @@ int main(int argc, char** argv){
 
             while(cmd != CMD_FINNISHED && cmd != CMD_ERROR){
                 
-                if(output && cmd != CMD_NONE) fputc((int) get_cmd_char(cmd), output);
+                if(output)
+                    record(output, cmd, 20, 0);
 
                 if(game.update(cmd)) break;
 
@@ -276,7 +302,8 @@ int main(int argc, char** argv){
                 fprintf(stderr, "[ERROR] invalid command char %u '%c'\n", c, c);
                 break;
             }
-            else if(output && cmd != CMD_NONE) fputc((int) get_cmd_char(cmd), output);
+            else if(output)
+                record(output, cmd, 20, 0);
         }
     }
     if(input){
@@ -287,15 +314,19 @@ int main(int argc, char** argv){
 
         int cmd = game.get_cmd();
 
-        for(; cmd != CMD_FINNISHED && cmd != CMD_ERROR; cmd = game.get_cmd()){
+        for(
+            unsigned int cmd_line_len = 0;
+            cmd != CMD_FINNISHED && cmd != CMD_ERROR;
+            cmd = game.get_cmd()
+        ){
 
-            if(output && cmd != CMD_NONE)
-                fputc((int) get_cmd_char(cmd), output);
+            if(output)
+                record(output, cmd, 20, 1);
 
             if(game.update(cmd)) break;
         }
-        if(output && cmd != CMD_NONE)
-            fputc((int) get_cmd_char(cmd), output);
+        if(output)
+            record(output, cmd, 20, 1);
 
         game.update_subsystem();
     }
