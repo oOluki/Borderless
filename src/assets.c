@@ -16,12 +16,15 @@ int get_sprite_from_char(char c){
 	case '\"':	return FONT_OPEN_QUOTES;
 	case ':':	return FONT_COLUMN;
 	case ';':	return FONT_SEMI_COLUMN;
+	case '(':
 	case '[':	return FONT_OPENPAREN;
+	case ')':
 	case ']':	return FONT_CLOSEPAREN;
 	case '%':	return FONT_PERCENT;
 	case ' ':	return FONT_SPACE;
 	case '-': 	return FONT_DASH;
 	case '_': 	return FONT_UNDERLINE;
+	case '=': 	return FONT_EQUAL;
 	default:
 		if(c >= '0' && c <= '9') return (int) (FONT_0 + c - '0');
 		if(c >= 'a' && c <= 'z') return (int) (FONT_a + c - 'a');

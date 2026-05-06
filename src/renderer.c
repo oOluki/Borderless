@@ -311,6 +311,12 @@ static const unsigned char* get_weapon_sprite(int weapon, int direction, int* st
         ERROR("invalid weapon %i", weapon);
         return NULL;
     }
+    if(weapon == WEAPON_NONE){
+        if(w) *w = 0;
+        if(h) *h = 0;
+        if(stride) 0;
+        return NULL;
+    }
 
     const SpriteSheet spritesheet = weapon_spritesheets[weapon];
     if(spritesheet.sprites_per_row != 1){
@@ -349,24 +355,24 @@ static int graphics_draw_tile(Tile tile, int x, int y){
 
         if(TILEW > entity_spritesheet.spritew) x += (TILEW - entity_spritesheet.spritew) / 2;
         if(TILEH > entity_spritesheet.spriteh) y += (TILEH - entity_spritesheet.spriteh) / 2;
+        const int orient = entity->orientation;
+        const int dx = (orient == ORIENT_RIGHT) - (orient == ORIENT_LEFT);
+        const int dy = (orient == ORIENT_DOWN)  - (orient == ORIENT_UP);
+        const int sw = weapon_spritesheets[entity->weapon].spritew;
+        const int sh = weapon_spritesheets[entity->weapon].spriteh;
+        const int w = (orient == ORIENT_UP || orient == ORIENT_DOWN)? sw : sh;
+        const int h = (orient == ORIENT_UP || orient == ORIENT_DOWN)? sh : sw;
+        int wstride;
+        int wsw;
+        int wsh;
+        const unsigned char* const weapon_sprite = get_weapon_sprite(entity->weapon, entity->orientation, &wstride, &wsw, &wsh);
+        copy_raw(
+            game.draw_canvas, weapon_sprite, wstride, wsw, wsh,
+            (dx > 0)? x + entity_spritesheet.spritew + 1 : x + dx * (w + 1),
+            (dy > 0)? y + entity_spritesheet.spriteh + 1 : y + dy * (h + 1),
+            (Color[3]){0x00000000, palette[1], enitity_color[entity->id]}
+        );
         if(entity->state & STATE_ALERTED){
-            const int orient = entity->orientation;
-            const int dx = (orient == ORIENT_RIGHT) - (orient == ORIENT_LEFT);
-            const int dy = (orient == ORIENT_DOWN)  - (orient == ORIENT_UP);
-            const int sw = weapon_spritesheets[entity->weapon].spritew;
-            const int sh = weapon_spritesheets[entity->weapon].spriteh;
-            const int w = (orient == ORIENT_UP || orient == ORIENT_DOWN)? sw : sh;
-            const int h = (orient == ORIENT_UP || orient == ORIENT_DOWN)? sh : sw;
-            int wstride;
-            int wsw;
-            int wsh;
-            const unsigned char* const weapon_sprite = get_weapon_sprite(entity->weapon, entity->orientation, &wstride, &wsw, &wsh);
-            copy_raw(
-                game.draw_canvas, weapon_sprite, wstride, wsw, wsh,
-                (dx > 0)? x + entity_spritesheet.spritew + 1 : x + dx * (w + 1),
-                (dy > 0)? y + entity_spritesheet.spriteh + 1 : y + dy * (h + 1),
-                (Color[3]){0x00000000, palette[1], enitity_color[entity->id]}
-            );
             copy_sprite(
                 game.draw_canvas, fontsheet,
                 x, y - entity_spritesheet.spriteh, FONT_ALERT,
@@ -413,9 +419,12 @@ void draw(){
     else if(game.draw_mode == DRAW_MODE_GRAPHIC){
         clear_rect(game.draw_canvas, 0, 0, game.camera.w, game.camera.h, BACKGROUND_COLOR);
         graphics_draw_map();
-        game.tmp_str[game.tmp_str_size] = '\0';
-        render_text(game.draw_canvas, (game.camera.w - game.tmp_str_size * fontsheet.spritew) / 2, 0, game.tmp_str, 0xFF991122);
-        for(int i = 0; i < game.option_count; i+=1){
+        if(game.tmp_message_frames){
+            game.tmp_str[game.tmp_str_size] = '\0';
+            render_text(game.draw_canvas, (game.camera.w - game.tmp_str_size * fontsheet.spritew) / 2, 0, game.tmp_str, 0xFF991122);
+            game.tmp_message_frames -= 1;
+        }
+        if(game.update == option_select_update) for(int i = 0; i < game.option_count; i+=1){
             const char* const option_str = get_option_str(game.options[i]);
             const int option_str_len = _str_len(option_str);
             render_text(
@@ -429,10 +438,15 @@ void draw(){
     else if(game.draw_mode == DRAW_MODE_CONSOLE){
         printf("\x1B[2J\x1B[H\n");
         console_draw_map();
-        printf("%.*s\n", game.tmp_str_size, game.tmp_str);
-        if(game.option_count > 0) printf("options:\n");
-        for(int i = 0; i < game.option_count; i+=1){
-            printf("%c%i- %s\n", (i == game.selected_option)? '*' : ' ', i, get_option_str(game.options[i]));
+        if(game.tmp_message_frames){
+            printf("%.*s\n", game.tmp_str_size, game.tmp_str);
+            game.tmp_message_frames -= 1;
+        }
+        if(game.update == option_select_update){
+            printf("options:\n");
+            for(int i = 0; i < game.option_count; i+=1){
+                printf("%c%i- %s\n", (i == game.selected_option)? '*' : ' ', i, get_option_str(game.options[i]));
+            }
         }
     }
     else{

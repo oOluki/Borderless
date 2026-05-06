@@ -46,6 +46,47 @@ int orientation_direction(int orientation, int* dx, int* dy){
     }
 }
 
+int get_weapon_range(int weapon){
+    static const int weapon_range[WEAPON_COUNT] = {
+        [WEAPON_NONE]   = 0,
+        [WEAPON_PISTOL] = 6
+    };
+    if(weapon < 0 || weapon >= WEAPON_COUNT){
+        ERROR("weapon %i does not exist", weapon);
+        return 0;
+    }
+    return weapon_range[weapon];
+}
+
+int fire_weapon(int weapon_range, int mapx, int mapy, int direction){
+
+    int dx;
+    int dy;
+    if(orientation_direction(direction, &dx, &dy)){
+        ERROR("invalid direction %i", direction);
+        return 0;
+    }
+
+    mapx = mapx / TILEW + dx;
+    mapy = mapy / TILEH + dy;
+    
+    int i = 0;
+    Tile tile = get_tile(game.map, mapx, mapy);
+    for(; TILE_TYPE(tile) == TILETYPE_NONE && i < weapon_range; i+=1){
+        mapx += dx;
+        mapy += dy;
+        tile = get_tile(game.map, mapx, mapy);
+    }
+    if(TILE_TYPE(tile) == TILETYPE_ENTITY){
+        game.entities[TILE_DATA(tile)].state &= ~STATE_CLEAN_ON_KILL;
+    }
+    else if(TILE_TYPE(tile) == TILETYPE_PLAYER){
+        game.player.state &= ~STATE_CLEAN_ON_KILL;
+    }
+
+    return i;
+}
+
 // pass max_distance = -1.0f to check whether target is visible at all from origin point
 static int is_target_visible_from(const Map map, int targetx, int targety, int fromx, int fromy, float max_distance){
 
@@ -125,6 +166,8 @@ static int move_towards_visible(Entity* self, int targetx, int targety){
 
 int update_entity(Entity* self){
 
+    self->state &= ~STATE_CLEAN_ON_UPDATE;
+
     if(!(self->state & STATE_ALIVE)){
         return 0;
     }
@@ -135,7 +178,7 @@ int update_entity(Entity* self){
 
     if(self->state & STATE_ALERTED){
         if((ABS(self->x - game.player.x) <= TILEW) && (ABS(self->y - game.player.y) <= TILEH)){
-            game.player.state = STATE_DEAD;
+            game.player.state &= ~STATE_CLEAN_ON_KILL;
         }
         else if(is_target_visible_from(game.map, game.player.x, game.player.y, self->x, self->y, -1.0f)){
             if(!move_towards_visible(self, game.player.x, game.player.y)){ // diagonal case...
@@ -156,8 +199,15 @@ int update_entity(Entity* self){
             }
             if(self->state & STATE_ALERTED){
                 const int d2 = distance2(game.player.x / TILEW, game.player.y / TILEH, self->x / TILEW, self->y / TILEH);
-                if((d2 < 2) || (d2 <= 9 && self->weapon == WEAPON_PISTOL))
-                    game.player.state = STATE_DEAD;
+                if(d2 < 2)
+                    game.player.state &= ~STATE_CLEAN_ON_KILL;
+                else if(self->weapon != WEAPON_NONE){
+                    const int weapon_range = get_weapon_range(self->weapon);
+                    if(d2 < weapon_range * weapon_range){
+                        game.player.state &= ~STATE_CLEAN_ON_KILL;
+                        self->state |= STATE_SHOOTING;
+                    }
+                }
             }
             self->targetx = game.player.x;
             self->targety = game.player.y;
@@ -170,7 +220,7 @@ int update_entity(Entity* self){
                 self->state &= ~STATE_ALERTED;
             }
         }
-        //self->sprite = (self->state & STATE_ALERTED)? SPRITE_ALERT : SPRITE_ORIENTATION + self->orientation;
+        
         return 0;
     }
 
@@ -181,7 +231,6 @@ int update_entity(Entity* self){
             self->chill = ENEMY1_CHILL;
             self->orientation = (self->orientation + 1) % ORIENT_COUNT;
         }
-        //self->sprite = SPRITE_ORIENTATION + self->orientation;
         return 0;
     }
 
@@ -193,7 +242,7 @@ int update_entity(Entity* self){
         self->state |= STATE_ALERTED;
         //self->sprite = SPRITE_ALERT;
         if((ABS(self->x - game.player.x) <= TILEW) && (ABS(self->y - game.player.y) <= TILEH)){
-            game.player.state = STATE_DEAD;
+            game.player.state &= ~STATE_CLEAN_ON_KILL;
         }
     } else{
         if(--self->chill < 0){

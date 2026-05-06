@@ -11,6 +11,21 @@
 
 Game game = {};
 
+typedef struct _change_update_arg_t {
+    int dont_clean_message;
+    int cmd;
+} _change_update_arg_t;
+
+static inline int _change_update(int(*f)(int cmd), _change_update_arg_t arg){
+    if(0 == arg.dont_clean_message)
+        game.tmp_message_frames = 0;
+    if(f == NULL)
+        return 0;
+    game.update = f;
+    return f(arg.cmd);
+}
+
+#define change_update(NEW_UPDATE_METHOD, ...) _change_update((NEW_UPDATE_METHOD), (_change_update_arg_t){__VA_ARGS__})
 
 int _load_options(const int* options){
     game.option_count = 0;
@@ -52,6 +67,61 @@ const char* get_weapon_str(int weapon){
     }
 }
 
+static int move_mouse_update(int cmd){
+
+    switch (cmd)
+    {
+    case CMD_NONE:
+        return 0;
+    case CMD_QUIT:
+        game.active = 0;
+        return 1;
+    case CMD_UP:
+    case CMD_DOWN:
+        game.mousey += (cmd == CMD_DOWN)? TILEH : -TILEH;
+        break;
+    case CMD_RIGHT:
+    case CMD_LEFT:
+        game.mousex += (cmd == CMD_RIGHT)? TILEW : -TILEW;
+        break;
+    case CMD_LCLICK:
+    case CMD_ENTER:
+        choose_option(game.option_callback, &game.player);
+        if(game.active == 0)
+            return 1;
+    case CMD_BACK:
+        game.update = level_update;
+        game.tmp_message_frames = 0;
+        return level_update(CMD_DISPLAY);;
+    default:
+        break;
+    }
+
+    if(game.mousey > game.camera.y + game.camera.h)
+        game.mousey = game.camera.y + game.camera.h - TILEH;
+    if(game.mousey < MAX(game.camera.y, 0))
+        game.mousey = MAX(game.camera.y, 0);
+    if(game.mousex > game.camera.x + game.camera.w)
+        game.mousex = game.camera.x + game.camera.w - TILEW;
+    if(game.mousex < MAX(game.camera.x, 0))
+        game.mousex = MAX(game.camera.x, 0);
+
+    message(-1,
+        "cursor (%i, %i)", .arg[0].i = game.mousex, .arg[1].i = game.mousey
+    );
+
+    draw();
+
+    draw_rect(
+        game.draw_canvas,
+        (int) (game.mousex / TILEW) * TILEW - game.camera.x,
+        (int) (game.mousey / TILEH) * TILEH - game.camera.y,
+        TILEW, TILEH, 0xAA000000
+    );
+
+    return 0;
+}
+
 int level_update(int cmd){
 
     switch(cmd)
@@ -69,46 +139,34 @@ int level_update(int cmd){
     case CMD_DEBUG:
         game.debug = !game.debug;
         break;
-    case CMD_CHEAT_RESTART:
-        load_map(0);
-        break;
     case CMD_BACK:
-        game.update = option_select_update;
-        loadOptions(OPTION_QUIT, OPTION_PLAY, OPTION_LOAD_MAP, OPTION_TEST, OPTION_CANCEL);
-        option_select_update(CMD_DISPLAY);
-        return 0;
+        loadOptions(OPTION_QUIT, OPTION_PLAY, OPTION_TEST, OPTION_CANCEL);
+        return change_update(option_select_update, .cmd = CMD_DISPLAY);
     case CMD_ENTER:{
         int dx;
         int dy;
         orientation_direction(game.player.orientation, &dx, &dy);
-        game.option_count = interact_with(game.options, get_tile(game.map, game.player.x / TILEW + dx, game.player.y / TILEH + dy));
+        game.option_count = interact_with(game.options, &game.player, get_tile(game.map, game.player.x / TILEW + dx, game.player.y / TILEH + dy));
         if(game.option_count > 0){
             game.update = option_select_update;
             option_select_update(CMD_DISPLAY);
         }
     }
         return !!game.option_count;
-    case CMD_TOGGLE: // TODO
+    case CMD_RCLICK: // TODO
         return 0;
-    case CMD_MOUSECLICK:{
+    case CMD_LCLICK:{
         clear_rect(game.draw_canvas, 0, 0, game.camera.w, game.camera.h, BACKGROUND_COLOR);
 
         draw();
 
         int path[10];
 
-        printf("player at (%i, %i) to mouse at (%i, %i)\n",
-        game.player.x, game.player.y, game.mouse.x + game.camera.x, game.mouse.y + game.camera.y);
         const int path_size = find_path(
             path, ARLEN(path), game.map,
             game.player.x / TILEW, game.player.y / TILEH,
-            (game.mouse.x + game.camera.x) / TILEW, (game.mouse.y + game.camera.y) / TILEH
+            game.mousex / TILEW, game.mousey / TILEH
         );
-
-        if(path_size > 0)
-            printf("found path of size %i\n", path_size);
-        else
-            printf("no path found\n");
 
         for(int i = 0; i < path_size; i+=1){
             fill_rect(
@@ -122,8 +180,8 @@ int level_update(int cmd){
 
         fill_rect(
             game.draw_canvas,
-            game.mouse.x - game.mouse.w / 2, game.mouse.y - game.mouse.h / 2,
-            game.mouse.w, game.mouse.h,
+            (int)(game.mousex / TILEW) * TILEW - game.camera.x, (int) (game.mousey / TILEH) * TILEH - game.camera.y,
+            TILEW, TILEH,
             0xAA11AADD
         );
     }
@@ -140,7 +198,7 @@ int level_update(int cmd){
         }
         else if(TILE_TYPE(tile) == TILETYPE_ENTITY){
             if(game.entities[TILE_DATA(tile)].state & STATE_ALIVE){
-                game.entities[TILE_DATA(tile)].state = STATE_DEAD;
+                game.entities[TILE_DATA(tile)].state &= ~STATE_CLEAN_ON_KILL;
             }
             else{
                 const Tile t = get_tile(game.map, px + 2 * dx, py + 2 * dy);
@@ -153,17 +211,6 @@ int level_update(int cmd){
     }
         break;
     case CMD_RIGHT:
-        if(game.player.state & STATE_CARRING){
-            int dx = 0;
-            int dy = 0;
-            orientation_direction(game.player.orientation, &dx, &dy);
-            const Tile tile = get_tile(game.map, game.player.x / TILEW + dx, game.player.y / TILEH + dy);
-            if(TILE_TYPE(tile) == TILETYPE_ENTITY)
-                game.entities[TILE_DATA(tile)].state &= ~STATE_GRABBED;
-            game.player.state &= ~STATE_CARRING;
-        }
-        game.player.orientation = (game.player.orientation + 1) % ORIENT_COUNT;
-        break;
     case CMD_LEFT:
         if(game.player.state & STATE_CARRING){
             int dx = 0;
@@ -174,7 +221,8 @@ int level_update(int cmd){
                 game.entities[TILE_DATA(tile)].state &= ~STATE_GRABBED;
             game.player.state &= ~STATE_CARRING;
         }
-        game.player.orientation = (game.player.orientation + ORIENT_COUNT - 1) % ORIENT_COUNT;
+        game.player.orientation =
+            (game.player.orientation + ((cmd == CMD_RIGHT)? 1 : ORIENT_COUNT - 1)) % ORIENT_COUNT;
         break;
     case CMD_DOWN:{
         int dx = 0;
@@ -226,8 +274,7 @@ int level_update(int cmd){
 int option_select_update(int cmd){
 
     if(game.option_count <= 0){
-        game.update = level_update;
-        return level_update(CMD_DISPLAY);
+        return change_update(level_update, .cmd = CMD_DISPLAY);
     }
 
     switch(cmd)
@@ -237,9 +284,6 @@ int option_select_update(int cmd){
     case CMD_QUIT:
         game.active = 0;
         return 1;
-    case CMD_UPDATE:
-    case CMD_DISPLAY:
-        break;
     case CMD_DOWN:
         if(game.option_count) game.selected_option = (game.selected_option + 1) % game.option_count;
         break;
@@ -247,27 +291,20 @@ int option_select_update(int cmd){
         if(game.option_count) game.selected_option = (game.selected_option == 0)? game.option_count - 1 : game.selected_option - 1;
         break;
     case CMD_BACK:
-        game.update = level_update;
-        game.option_count = 0;
-        game.tmp_str_size = 0;
-        level_update(CMD_DISPLAY);
-        return 0;
-    case CMD_MOUSECLICK:
+        return change_update(level_update, .cmd = CMD_DISPLAY);
+    case CMD_LCLICK:
     case CMD_ENTER:
         if(game.selected_option >= 0 && game.selected_option < game.option_count){
             if(choose_option(game.options[game.selected_option], &game.player)){
                 if(0 == game.active)
                     return 1;
-                game.update = level_update;
-                game.option_count = 0;
-                game.tmp_str_size = 0;
-                return level_update(CMD_UPDATE);
+                return change_update(level_update, .cmd = CMD_UPDATE);
             }
         }
         return 0;
     
     default:
-        return 0;
+        break;
     }
 
     draw();
@@ -291,9 +328,7 @@ static int map_select_update(int cmd){
         return 1;
     case CMD_BACK:
     case CMD_ENTER:
-        game.tmp_str_size = 0;
-        game.update = level_update;
-        return level_update(CMD_DISPLAY);
+        return change_update(level_update, .cmd = CMD_DISPLAY);
     case CMD_UP:
         game.map_number = MAP_0;
         load_map_and_center_camera(game.map_number);
@@ -318,7 +353,7 @@ static int map_select_update(int cmd){
         break;
     }
 
-    game.tmp_str_size = feed_str(game.tmp_str, ARLEN(game.tmp_str), "map: %s", .arg[0].str = get_map_str(game.map_number));
+    message(1, "map: %s", .arg[0].str = get_map_str(game.map_number));
 
     draw();
 
@@ -326,9 +361,13 @@ static int map_select_update(int cmd){
 }
 
 
-int interact_with(int* output, const Tile _tile){
+int interact_with(int* output, const Entity* entity, const Tile _tile){
     const int tile = TILE_DATA(_tile);
     int count = 0;
+
+    if(entity->weapon != WEAPON_NONE)
+        output[count++] = OPTION_FIRE;
+
     switch (TILE_TYPE(_tile))
     {
     case TILETYPE_ENTITY:
@@ -340,13 +379,12 @@ int interact_with(int* output, const Tile _tile){
         break;
     
     default:
-        game.tmp_str_size += feed_str(
-            &game.tmp_str[game.tmp_str_size],
-            sizeof(game.tmp_str) - game.tmp_str_size,
-            "Nothing to interact with..."
-        );
+        if(entity->weapon == WEAPON_NONE) {
+            message(-1, "Nothing to interact with...");
+        }
         break;
     }
+    output[count++] = OPTION_MOVECURSOR;
     output[count++] = OPTION_CANCEL;
     return count;
 }
@@ -362,7 +400,7 @@ int choose_option(int OPTION, void* context){
         return 1;
     case OPTION_PLAY:
         game.entity_count = 0;
-        game.option_count = 0;
+        game.tmp_message_frames = 0;
         load_map(game.map_number);
         game.update = level_update;
         level_update(CMD_DISPLAY);
@@ -381,7 +419,7 @@ int choose_option(int OPTION, void* context){
         const Tile tile = get_tile(game.map, entity->x / TILEW + dx, entity-> y / TILEH + dy);
         if(TILE_TYPE(tile) != TILETYPE_ENTITY)
             return 1;
-        game.entities[TILE_DATA(tile)].state = STATE_DEAD;
+        game.entities[TILE_DATA(tile)].state &= ~STATE_CLEAN_ON_KILL;
     }
         return 1;
     case OPTION_PUSH:{
@@ -458,9 +496,8 @@ int choose_option(int OPTION, void* context){
                 game.option_callback = OPTION_NONE;
             }
             else{
-                game.tmp_str_size = feed_str(
-                    game.tmp_str, ARLEN(game.tmp_str), "want to swap your %s for %s?",
-                    get_weapon_str(entity->weapon), get_weapon_str(other->weapon)
+                message(-1, "want to swap your %s for %s?",
+                    .arg[0].str = get_weapon_str(entity->weapon), .arg[1].str = get_weapon_str(other->weapon)
                 );
                 loadOptions(OPTION_YES, OPTION_NO);
                 game.option_callback = OPTION;
@@ -475,18 +512,42 @@ int choose_option(int OPTION, void* context){
         other->items = ITEM_NONE;
     }
         return 1;
-    case OPTION_LOAD_MAP:
-        game.update = map_select_update;
-        game.option_count = 0;
-        map_select_update(CMD_DISPLAY);
-        return 0;
+    case OPTION_FIRE:{
+        const Entity* entity = (const Entity*) context;
+        if(entity->weapon != WEAPON_NONE)
+            fire_weapon(entity->weapon, entity->x / TILEW, entity->y / TILEH, entity->orientation);
+    }
+        return 1;
+    case OPTION_MOVECURSOR:
+        return change_update(move_mouse_update, .cmd = CMD_DISPLAY);
     case OPTION_TEST:
-        loadOptions(OPTION_TEST_RNG, OPTION_CANCEL);
+        loadOptions(OPTION_LOAD_MAP, OPTION_REVIVE, OPTION_TEST_RNG, OPTION_CANCEL);
         option_select_update(CMD_DISPLAY);
         return 0;
+    case OPTION_LOAD_MAP:
+        return change_update(map_select_update, .cmd = CMD_DISPLAY);
     case OPTION_TEST_RNG:
-        game.tmp_str_size = feed_str(game.tmp_str, ARLEN(game.tmp_str), "rng: %i", .arg[0].i = rng());
+        message(-1, "rng: %i", .arg[0].i = rng());
         option_select_update(CMD_DISPLAY);
+        return 0;
+    case OPTION_REVIVE:{
+        game.tmp_message_frames = 0;
+        const Tile tile = get_tile(game.map, game.mousex / TILEW, game.mousey / TILEH);
+        if(TILE_TYPE(tile) == TILETYPE_ENTITY){
+            game.entities[TILE_DATA(tile)].state &= ~STATE_CLEAN_ON_KILL;
+            game.entities[TILE_DATA(tile)].state |= STATE_ALIVE;
+        }
+        else if(TILE_TYPE(tile) == TILETYPE_PLAYER){
+            game.player.state &= ~STATE_CLEAN_ON_KILL;
+            game.player.state |= STATE_ALIVE;
+        }
+        else{
+            message(1, "nothing to revive at (x, y) = (%i, %i)", .arg[0].i = game.mousex, .arg[1].i = game.mousey);
+            return change_update(level_update, .cmd = CMD_DISPLAY, .dont_clean_message = 1);
+        }
+        game.update = level_update;
+        level_update(CMD_DISPLAY);
+    }
         return 0;
 
     default:
@@ -511,9 +572,13 @@ const char* get_option_str(int OPTION){
     case OPTION_GRAB:       return "GRAB";
     case OPTION_RELEASE:    return "RELEASE";
     case OPTION_LOOT:       return "LOOT";
-    case OPTION_LOAD_MAP:   return "LOAD MAP";
+    case OPTION_FIRE:       return "FIRE";
+    case OPTION_MOVECURSOR: return "MOVE CURSOR";
+
     case OPTION_TEST:       return "TEST";
+    case OPTION_LOAD_MAP:   return "LOAD MAP";
     case OPTION_TEST_RNG:   return "TEST RNG";
+    case OPTION_REVIVE:     return "REVIVE";
     default:
         ETODO(OPTION);
         return NULL;
@@ -537,7 +602,8 @@ int game_init(Pixel* draw_canvas_pixels, int draw_canvas_w, int draw_canvas_h){
     if(game.camera.w <= 0) game.camera.w = 24 * TILEW;
     if(game.camera.h <= 0) game.camera.h = 18 * TILEH;
 
-    game.mouse  = (Rect){.x = 0, .y = 0, .w = TILEW / 4 , .h = TILEH / 4 };
+    game.mousex = 0;
+    game.mousey = 0;
 
     //load_map(map1, map1w, map1h);
     load_map(0);

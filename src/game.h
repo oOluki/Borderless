@@ -21,7 +21,7 @@ int _load_options(const int* options);
 #define loadOptions(...) _load_options((int[]){__VA_ARGS__, OPTION_NONE})
 
 // \returns the number of options
-int interact_with(int* output, const Tile _tile);
+int interact_with(int* output, const Entity* entity, const Tile _tile);
 
 int choose_option(int option, void* context);
 

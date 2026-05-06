@@ -4,8 +4,8 @@
 #include "maps.h"
 #include "subsystem.h"
 
-//#include "input.h"
-
+#include "input.h"
+/*
 enum Cmd{
     CMD_NONE = 0,
     
@@ -16,8 +16,8 @@ enum Cmd{
 
     CMD_BACK,
     CMD_ENTER,
-    CMD_TOGGLE,
-    CMD_MOUSECLICK,
+    CMD_LCLICK,
+    CMD_CLICK,
 
     CMD_UP,
     CMD_RIGHT,
@@ -36,7 +36,7 @@ enum Cmd{
     CMD_COUNT,
 
     CMD_ERROR
-};
+};*/
 
 char get_cmd_char(int cmd);
 

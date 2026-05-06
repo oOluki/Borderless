@@ -11,15 +11,13 @@ enum Cmd{
 
     CMD_BACK,
     CMD_ENTER,
-    CMD_TOGGLE,
-    CMD_MOUSECLICK,
+    CMD_RCLICK,
+    CMD_LCLICK,
 
     CMD_UP,
     CMD_RIGHT,
     CMD_LEFT,
     CMD_DOWN,
-
-    CMD_CHEAT_RESTART,
 
     // for external user usage
     CMD_SPECIAL_SIGNAL,

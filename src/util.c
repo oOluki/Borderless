@@ -73,7 +73,7 @@ int _feed_str(char* output, int max_len, const char* input, const feed_str_arg_t
                 }
             case 'u':
                 len += feed_uint(output + len, (input[i] == 'i')? ABS(args.arg[arg].i) : args.arg[arg].u, max_len);
-                printf("%i\n", args.arg[arg].i);
+                arg+=1;
                 break;
             default:
                 ERROR("format '%c' not implemented\n", input[i]);

@@ -140,12 +140,16 @@ enum Entities{
 };
 
 enum EntityStates{
-    STATE_DEAD    = 0,
-    STATE_ALIVE   = 1 << 0,
-    STATE_DAZZLED = 1 << 1,
-    STATE_ALERTED = 1 << 2,
-    STATE_CARRING = 1 << 3,
-    STATE_GRABBED = 1 << 4
+    STATE_DEAD      = 0,
+    STATE_ALIVE     = 1 << 0,
+    STATE_DAZZLED   = 1 << 1,
+    STATE_ALERTED   = 1 << 2,
+    STATE_CARRING   = 1 << 3,
+    STATE_GRABBED   = 1 << 4,
+    STATE_SHOOTING  = 1 << 5,
+
+    STATE_CLEAN_ON_UPDATE = STATE_SHOOTING,
+    STATE_CLEAN_ON_KILL   = STATE_ALIVE | STATE_ALERTED | STATE_DAZZLED | STATE_CARRING
 };
 
 enum ORIENTATIONS{
@@ -172,11 +176,13 @@ enum Options{
     OPTION_GRAB,
     OPTION_RELEASE,
     OPTION_LOOT,
-
-    OPTION_LOAD_MAP,
+    OPTION_FIRE,
+    OPTION_MOVECURSOR,
 
     OPTION_TEST,
+    OPTION_LOAD_MAP,
     OPTION_TEST_RNG,
+    OPTION_REVIVE,
 
     // for counting purposes
     OPTION_COUNT
@@ -291,7 +297,8 @@ typedef struct Game{
     Surface         draw_canvas;
 
     Rect            camera;
-    Rect            mouse;
+    int             mousex;
+    int             mousey;
     //Pixel           mouse_canvas[TILEW * TILEH];
 
     Map             map;
@@ -318,6 +325,8 @@ typedef struct Game{
 
     char            tmp_str[64];
     int             tmp_str_size;
+    // the amount of frames tmp_str should be displayed (-1 will display it indefinetly)
+    int             tmp_message_frames;
 
     int debug;
 } Game;

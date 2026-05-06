@@ -79,8 +79,6 @@ int updateascii_subsystem(){
         fflush(stdout);
     }
 
-    printf(">>> ");
-
     return 0;
 }
 
@@ -88,20 +86,19 @@ int getascii_cmd(){
 
     int c = read_key();
 
-    if(c == ':' || c == 'h'){
-        fputc(c, stdout);
+    if(c == ':'){
+        putchar(c);
         fflush(stdout);
         c = read_key();
-        fprintf(stdout, "\r");
+        printf("\r");
         switch (c)
         {
         case 'l':
-            printf("\x1B[2J\x1B[H\n");
-            printf(">>> ");
+            printf("\x1B[2J\x1B[H\n\r");
             return 0;
         case 'd':
             game.draw_mode = (game.draw_mode + 1) % DRAW_MODE_COUNT;
-            return CMD_NONE;
+            return CMD_DISPLAY;
         case 'm':
 #ifdef SUPPORT_SDL
             game.init_subsystem   = initsdl_subsystem;
@@ -131,7 +128,7 @@ int getascii_cmd(){
             return CMD_NONE;
         
         default:
-            REPORT(REPORT, "no signal for %u '%c', enter h for little help message", c, c);
+            REPORT(REPORT, "no signal for %u '%c', enter :h for little help message", c, c);
             return CMD_NONE;
         }
     }
@@ -172,7 +169,8 @@ static struct UserData{
     Uint64          realdt;
     Uint64          t;
 
-    Uint64          mouse_buttondown_time;
+    Uint64          rmouse_buttondown_time;
+    Uint64          lmouse_buttondown_time;
 
     int             continuos;
     int             ctrl;
@@ -255,20 +253,28 @@ static int handle_keyup(SDL_Keycode key){
     {
     case SDLK_ESCAPE:
         return CMD_BACK;
-    case SDLK_F5:
-        return CMD_CHEAT_RESTART;
+    case SDLK_UP:
     case SDLK_w:
         user_data.movement &= ~USR_UP;
         return (!user_data.continuos)? CMD_UP   : CMD_NONE;
+    case SDLK_LEFT:
     case SDLK_a:
         user_data.movement &= ~USR_LEFT;
         return (!user_data.continuos)? CMD_LEFT : CMD_NONE;
+    case SDLK_DOWN:
     case SDLK_s:
         user_data.movement &= ~USR_DOWN;
         return (!user_data.continuos)? CMD_DOWN : CMD_NONE;
+    case SDLK_RIGHT:
     case SDLK_d:
         user_data.movement &= ~USR_RIGHT;
         return (!user_data.continuos)? CMD_RIGHT : CMD_NONE;
+    case SDLK_b:
+        return (!user_data.continuos)? CMD_BACK  : CMD_NONE;
+    case SDLK_c:
+        return (!user_data.continuos)? CMD_LCLICK : CMD_NONE;
+    case SDLK_v:
+        return (!user_data.continuos)? CMD_RCLICK : CMD_NONE;
     case SDLK_l:
         if(user_data.ctrl){
             printf("\x1B[2J\x1B[H\n");
@@ -291,6 +297,7 @@ static int handle_keydown(SDL_Keycode key){
 
     switch (key)
     {
+    case SDLK_UP:
     case SDLK_w:
         user_data.movement |= USR_UP;
         if(user_data.continuos && user_data.chill > 160){
@@ -298,6 +305,7 @@ static int handle_keydown(SDL_Keycode key){
             return CMD_UP;
         }
         return CMD_NONE;
+    case SDLK_LEFT:
     case SDLK_a:
         user_data.movement |= USR_LEFT;
         if(user_data.continuos && user_data.chill > 160){
@@ -305,6 +313,7 @@ static int handle_keydown(SDL_Keycode key){
             return CMD_LEFT;
         }
         return CMD_NONE;
+    case SDLK_DOWN:
     case SDLK_s:
         user_data.movement |= USR_DOWN;
         if(user_data.continuos && user_data.chill > 160){
@@ -312,6 +321,7 @@ static int handle_keydown(SDL_Keycode key){
             return CMD_DOWN;
         }
         return CMD_NONE;
+    case SDLK_RIGHT:
     case SDLK_d:
         user_data.movement |= USR_RIGHT;
         if(user_data.continuos && user_data.chill > 160){
@@ -319,6 +329,8 @@ static int handle_keydown(SDL_Keycode key){
             return CMD_RIGHT;
         }
         return CMD_NONE;
+    case SDLK_f:
+        return user_data.continuos? CMD_FINNISHED : CMD_NONE;
     case SDLK_SPACE:
         if(user_data.ctrl){
             closesdl_subsystem();
@@ -358,7 +370,7 @@ int getsdl_cmd(){
 
     SDL_Event* const event = &user_data.event;
 
-    if(SDL_PollEvent(event)) switch (event->type)
+    while(SDL_PollEvent(event)) switch (event->type)
     {
     case SDL_QUIT:
         return CMD_QUIT;
@@ -366,6 +378,8 @@ int getsdl_cmd(){
         return handle_keyup(event->key.keysym.sym);
     case SDL_KEYDOWN:
         return handle_keydown(event->key.keysym.sym);
+    
+    /*
     case SDL_MOUSEMOTION:{
         const int xscale = (WINDOW2SCREEN_SCALE_PRECISION * user_data.windoww) / game.camera.w;
         const int yscale = (WINDOW2SCREEN_SCALE_PRECISION * user_data.windowh) / game.camera.h;
@@ -374,24 +388,28 @@ int getsdl_cmd(){
         const int desth  = (scale * game.camera.h) / WINDOW2SCREEN_SCALE_PRECISION;
         const int screenx = (user_data.windoww - destw) / 2;
         const int screeny = (user_data.windowh - desth) / 2;
-        game.mouse.x = ((user_data.event.motion.x - screenx) * game.camera.w) / destw;
-        game.mouse.y = ((user_data.event.motion.y - screeny) * game.camera.h) / desth;
-        for(int i = 0; i < game.option_count; i+=1){
-            const int y0 = ((i + 0) * game.camera.h) / game.option_count;
-            const int y1 = ((i + 1) * game.camera.h) / game.option_count;
-            if(game.mouse.y >= y0 && game.mouse.y <= y1){
-                game.selected_option = i;
-            }
-        }
-    }
+        game.mousex = ((user_data.event.motion.x - screenx) * game.camera.w) / destw;
+        game.mousey = ((user_data.event.motion.y - screeny) * game.camera.h) / desth;
+    }*/
         return CMD_NONE;
     case SDL_MOUSEBUTTONDOWN:
-        user_data.mouse_buttondown_time = SDL_GetTicks64();
+        if(SDL_BUTTON(event->button.button) == SDL_BUTTON_LEFT)
+            user_data.lmouse_buttondown_time = SDL_GetTicks64();
+        else if(SDL_BUTTON(event->button.button) == SDL_BUTTON_RIGHT)
+            user_data.rmouse_buttondown_time = SDL_GetTicks64();
         return CMD_NONE;
     case SDL_MOUSEBUTTONUP:
-        if(SDL_GetTicks64() - user_data.mouse_buttondown_time < 250){
-            user_data.mouse_buttondown_time = 0;
-            return CMD_MOUSECLICK;
+        if(SDL_BUTTON(event->button.button) == SDL_BUTTON_LEFT){
+            if(SDL_GetTicks64() - user_data.lmouse_buttondown_time < 250){
+                user_data.lmouse_buttondown_time = 0;
+                return CMD_LCLICK;
+            }
+        }
+        else if(SDL_BUTTON(event->button.button) == SDL_BUTTON_RIGHT){
+            if(SDL_GetTicks64() - user_data.rmouse_buttondown_time < 250){
+                user_data.rmouse_buttondown_time = 0;
+                return CMD_RCLICK;
+            }
         }
         return CMD_NONE;
     case SDL_WINDOWEVENT:

@@ -19,7 +19,12 @@ int _str_len(const char* str);
 
 int _feed_str(char* output, int max_len, const char* input, const feed_str_arg_t args);
 
-#define feed_str(OUTPUT, MAX_LEN, INPUT, ...) _feed_str((OUTPUT), (MAX_LEN), (INPUT), (feed_str_arg_t){__VA_ARGS__})
+#define __feed_str(OUTPUT, MAX_LEN, INPUT, ...) _feed_str((OUTPUT), (MAX_LEN), (INPUT), (feed_str_arg_t){__VA_ARGS__})
+
+#define message(FRAMES, INPUT, ...) do {\
+        game.tmp_str_size = __feed_str(game.tmp_str, ARLEN(game.tmp_str), INPUT, __VA_ARGS__);\
+        game.tmp_message_frames = (FRAMES);\
+    } while(0)
 
 int in_bounds(const Rect rect, int x, int y);
 
