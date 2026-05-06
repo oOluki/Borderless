@@ -8,12 +8,11 @@
 #include "util.h"
 
 
-static const char console_palette[] = {' ', 'X', '#', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', 'p', '@', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\'', '\''};
-static const char console_general_palette[] = {'*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*', '*'};
 static const char console_map_palette[]     = {' ', 'X', '#'};
-static const char console_player_sym        = 'p';
-static const char console_enemy1_sym        = '@';
-
+static const char console_weapons_sym[WEAPON_COUNT] = {
+    [WEAPON_NONE]   = ' ',
+    [WEAPON_PISTOL] = 'p'
+};
 
 static const uint32_t palette[] = {
     0x00000000, 0xff212121, 0xff616161, 0xffdcdcdc,
@@ -101,6 +100,8 @@ void draw_rect(Surface surface, int _x, int _y, int w, int h, Color color){
     const int yrange = (surface.h < _y + h)? surface.h - 1 : _y + h;
     _x = (_x < surface.w)? _x : surface.w;
     _y = (_y < surface.h)? _y : surface.h;
+    _x = MAX(0, _x);
+    _y = MAX(0, _y);
 
     for(int x = (_x < 0)? 0 : _x; x < xrange; x+=1){
         surface.pixels[x + _y * surface.stride]     = blend_colors(color, surface.pixels[x + _y * surface.stride]);
@@ -117,7 +118,7 @@ void draw_rect(Surface surface, int _x, int _y, int w, int h, Color color){
 
 int copy_raw(Surface surface, const unsigned char* sprite, int stride, int spritew, int spriteh, int x, int y, const uint32_t* _palette){
 
-    if(!sprite || !palette) return 1;
+    if(!sprite || !_palette) return 1;
 
     int i;
     int j0;
@@ -204,17 +205,22 @@ void render_text(Surface surface, int _x, int y, const char* txt, uint32_t color
 static int console_draw_tile(char* output, const int output_stride, Tile tile){
     const int tile_data = TILE_DATA(tile);
     const int TILETYPE = TILE_TYPE(tile);
+    const int mark = TILE_MARK(tile);
     switch (TILETYPE)
     {
     case TILETYPE_NONE:
         for(int i = 0; i < 3; i+=1)
             for(int j = 0; j < 3; j+=1)
                 output[i * output_stride + j] = ' ';
+        if(mark)
+            output[1 * output_stride + 1] = TILE_MARK_SYM;
         return 0;
     case TILETYPE_TILE:
         for(int i = 0; i < 3; i+=1)
             for(int j = 0; j < 3; j+=1)
                 output[i * output_stride + j] = console_map_palette[tile_data];
+        if(mark)
+            output[1 * output_stride + 1] = TILE_MARK_SYM;
         return 0;
     case TILETYPE_PLAYER:
     case TILETYPE_ENTITY:{
@@ -235,32 +241,34 @@ static int console_draw_tile(char* output, const int output_stride, Tile tile){
             output[0] = simple_console_font[FONT_DEAD];
         }
         output[1 * output_stride + 1] = entity_symbol[entity->id];
-        if((entity->state & STATE_ALERTED) && (entity->weapon == WEAPON_PISTOL))
-            output[2] = 'p';
+        output[2] = console_weapons_sym[entity->weapon];
+        const char marksym = mark? TILE_MARK_SYM : ' ';
         switch (entity->orientation)
         {
         case ORIENT_UP:
             output[0 * output_stride + 1] = simple_console_font[FONT_UP];
+            output[2 * output_stride + 1] = marksym;
             break;
         case ORIENT_RIGHT:
             output[1 * output_stride + 2] = simple_console_font[FONT_RIGHT];
+            output[1 * output_stride + 0] = marksym;
             break;
         case ORIENT_DOWN:
             output[2 * output_stride + 1] = simple_console_font[FONT_DOWN];
+            output[0 * output_stride + 1] = marksym;
             break;
         case ORIENT_LEFT:
             output[1 * output_stride + 0] = simple_console_font[FONT_LEFT];
+            output[1 * output_stride + 2] = marksym;
             break;
         default:
             output[1 * output_stride + 0] = simple_console_font[FONT_INTERROGATION];
+            output[1 * output_stride + 2] = marksym;
             break;
         }
     }
         return 0;
     default:
-        for(int i = 0; i < 3; i+=1)
-            for(int j = 0; j < 3; j+=1)
-                output[i * output_stride + j] = '?';
         ETODO(TILETYPE);
         return 1;
     }
@@ -270,20 +278,42 @@ static void console_draw_map(){
 
     if(!game.map.map) return;
 
-    const int ioffset = game.camera.y / TILEH;
-    const int joffset = game.camera.x / TILEW;
-    const int irange  = 1 + game.camera.h / TILEH;
-    const int jrange  = 1 + game.camera.w / TILEW;
+    const int cy        = MAX(0, game.camera.y);
+    const int cx        = MAX(0, game.camera.x);
+    const int ioffset   = cy / TILEH;
+    const int joffset   = cx / TILEW;
+    const int ilast     = MIN(game.map.h, (game.camera.y + game.camera.h) / TILEH);
+    const int jlast     = MIN(game.map.w, (game.camera.x + game.camera.w) / TILEW);
+    const int irange    = ilast - ioffset;
+    const int jrange    = jlast - joffset;
 
     printf("    ");
-    for(int j = 0; j < jrange; j+=2){
+    if(jrange > 0)
+        printf("%3i   ", joffset);
+    for(int j = 2; j < jrange; j+=2){
         printf("%3i   ", j);
     }
     printf("\n");
 
     const int stride = 3 * jrange;
 
-    for(int i = 0; i < irange; i+=1){
+    if(irange > 0){
+        char* canvas = (char*) game.draw_canvas.pixels;
+        for(int j = 0; j < jrange; j+=1){
+            const Tile tile = get_tile(game.map, j + joffset, ioffset);
+            if(console_draw_tile(canvas, stride, tile)){
+                ERROR("Could not draw tile %16llx", (long long) tile);
+                return ;
+            }
+            if(TILE_MARK(tile)) // remove mark
+                place_tile(&game.map, tile & ~TILE_MARK_MASK, j + joffset, ioffset);
+            canvas += 3;
+        }
+        printf("     %.*s\n", stride, ((char*) game.draw_canvas.pixels) + 0 * stride);
+        printf("%3i- %.*s\n", ioffset, stride, ((char*) game.draw_canvas.pixels) + 1 * stride);
+        printf("     %.*s\n", stride, ((char*) game.draw_canvas.pixels) + 2 * stride);
+    }
+    for(int i = 1; i < irange; i+=1){
         char* canvas = (char*) game.draw_canvas.pixels;
         for(int j = 0; j < jrange; j+=1){
             const Tile tile = get_tile(game.map, j + joffset, i + ioffset);
@@ -291,6 +321,8 @@ static void console_draw_map(){
                 ERROR("Could not draw tile %16llx", (long long) tile);
                 return ;
             }
+            if(TILE_MARK(tile)) // remove mark
+                place_tile(&game.map, tile & ~TILE_MARK_MASK, j + joffset, i + ioffset);
             canvas += 3;
         }
         printf("     %.*s\n", stride, ((char*) game.draw_canvas.pixels) + 0 * stride);
@@ -314,7 +346,7 @@ static const unsigned char* get_weapon_sprite(int weapon, int direction, int* st
     if(weapon == WEAPON_NONE){
         if(w) *w = 0;
         if(h) *h = 0;
-        if(stride) 0;
+        if(stride) *stride = 0;
         return NULL;
     }
 
@@ -335,16 +367,17 @@ static const unsigned char* get_weapon_sprite(int weapon, int direction, int* st
     return sprite;
 }
 
-static int graphics_draw_tile(Tile tile, int x, int y){
+static int graphics_draw_tile(Tile tile, int _x, int _y){
     const int tile_data = TILE_DATA(tile);
     const int TILETYPE = TILE_TYPE(tile);
+    const int mark = TILE_MARK(tile);
     switch (TILETYPE)
     {
     case TILETYPE_NONE:
-        return 0;
+        break;
     case TILETYPE_TILE:
-        fill_rect(game.draw_canvas, x, y, TILEW, TILEH, palette[tile_data]);
-        return 0;
+        fill_rect(game.draw_canvas, _x, _y, TILEW, TILEH, palette[tile_data]);
+        break;
     case TILETYPE_PLAYER:
     case TILETYPE_ENTITY:{
         const Entity* entity;
@@ -353,6 +386,8 @@ static int graphics_draw_tile(Tile tile, int x, int y){
         else
             entity = &game.entities[tile_data];
 
+        int x = _x;
+        int y = _y;
         if(TILEW > entity_spritesheet.spritew) x += (TILEW - entity_spritesheet.spritew) / 2;
         if(TILEH > entity_spritesheet.spriteh) y += (TILEH - entity_spritesheet.spriteh) / 2;
         const int orient = entity->orientation;
@@ -379,17 +414,22 @@ static int graphics_draw_tile(Tile tile, int x, int y){
                 (Color[3]){0x00000000, enitity_color[entity->id]}
             );
         }
-        return copy_sprite(
+        copy_sprite(
             game.draw_canvas, entity_spritesheet,
             x, y,
             (entity->state & STATE_ALIVE)? entity->orientation : ENTITY_SPRITE_DEAD,
             (Color[3]){0x00000000, palette[1], enitity_color[entity->id]}
         );
     }
+        break;
     default:
         ETODO(TILETYPE);
         return 1;
     }
+    if(mark){
+        draw_rect(game.draw_canvas, _x, _y, TILEW, TILEH, TILE_MARK_COLOR);
+    }
+    return 0;
 }
 
 static void graphics_draw_map(){
@@ -406,6 +446,9 @@ static void graphics_draw_map(){
             if(graphics_draw_tile(tile, j * TILEW - (game.camera.x % TILEW), i * TILEH - (game.camera.y % TILEH))){
                 ERROR("Could not draw tile %llu", (long long unsigned) tile);
                 return ;
+            }
+            if(TILE_MARK(tile)){ // remove mark
+                place_tile(&game.map, tile & ~TILE_MARK_MASK, j + joffset, i + ioffset);
             }
         }
     }

@@ -12,8 +12,8 @@
 Game game = {};
 
 typedef struct _change_update_arg_t {
-    int dont_clean_message;
     int cmd;
+    int dont_clean_message;
 } _change_update_arg_t;
 
 static inline int _change_update(int(*f)(int cmd), _change_update_arg_t arg){
@@ -106,18 +106,17 @@ static int move_mouse_update(int cmd){
     if(game.mousex < MAX(game.camera.x, 0))
         game.mousex = MAX(game.camera.x, 0);
 
+    const int mx = game.mousex / TILEW;
+    const int my = game.mousey / TILEH;
     message(-1,
-        "cursor (%i, %i)", .arg[0].i = game.mousex, .arg[1].i = game.mousey
+        "cursor (%i, %i)", .arg[0].i = mx, .arg[1].i = my
     );
+
+    const Tile mouse_tile = get_tile(game.map, mx, my) | TILE_MARK_MASK;
+
+    place_tile(&game.map, mouse_tile, mx, my);
 
     draw();
-
-    draw_rect(
-        game.draw_canvas,
-        (int) (game.mousex / TILEW) * TILEW - game.camera.x,
-        (int) (game.mousey / TILEH) * TILEH - game.camera.y,
-        TILEW, TILEH, 0xAA000000
-    );
 
     return 0;
 }
@@ -156,10 +155,6 @@ int level_update(int cmd){
     case CMD_RCLICK: // TODO
         return 0;
     case CMD_LCLICK:{
-        clear_rect(game.draw_canvas, 0, 0, game.camera.w, game.camera.h, BACKGROUND_COLOR);
-
-        draw();
-
         int path[10];
 
         const int path_size = find_path(
@@ -169,21 +164,13 @@ int level_update(int cmd){
         );
 
         for(int i = 0; i < path_size; i+=1){
-            fill_rect(
-                game.draw_canvas,
-                (path[i] % game.map.w) * TILEW - game.camera.x,
-                ((int) (path[i] / game.map.w)) * TILEH - game.camera.y,
-                TILEW, TILEH,
-                0xAA0000BB
-            );
+            const int x = path[i] % game.map.w;
+            const int y = (int) (path[i] / game.map.w);
+            const Tile t = get_tile(game.map, x, y);
+            place_tile(&game.map, t | TILE_MARK_MASK, x, y);
         }
 
-        fill_rect(
-            game.draw_canvas,
-            (int)(game.mousex / TILEW) * TILEW - game.camera.x, (int) (game.mousey / TILEH) * TILEH - game.camera.y,
-            TILEW, TILEH,
-            0xAA11AADD
-        );
+        draw();
     }
         return 0;
     case CMD_UP:{
@@ -397,7 +384,8 @@ int choose_option(int OPTION, void* context){
     case OPTION_QUIT:
         game.active = 0;
     case OPTION_CANCEL:
-        return 1;
+        change_update(level_update, .cmd = CMD_DISPLAY);
+        return 0;
     case OPTION_PLAY:
         game.entity_count = 0;
         game.tmp_message_frames = 0;
@@ -484,7 +472,7 @@ int choose_option(int OPTION, void* context){
         Entity* const other = &game.entities[TILE_DATA(tile)];
         if(other->state & STATE_ALIVE){
             other->state |= STATE_ALERTED;
-            const int robbed_item = rng(robbed_item) & ITEM_FULL_MASK;
+            const int robbed_item = rng() & ITEM_FULL_MASK;
             other->items &= ~robbed_item;
             entity->items |= robbed_item;
             return 1;
@@ -515,7 +503,7 @@ int choose_option(int OPTION, void* context){
     case OPTION_FIRE:{
         const Entity* entity = (const Entity*) context;
         if(entity->weapon != WEAPON_NONE)
-            fire_weapon(entity->weapon, entity->x / TILEW, entity->y / TILEH, entity->orientation);
+            fire_weapon(get_weapon_range(entity->weapon), entity->x / TILEW, entity->y / TILEH, entity->orientation);
     }
         return 1;
     case OPTION_MOVECURSOR:
@@ -542,7 +530,7 @@ int choose_option(int OPTION, void* context){
             game.player.state |= STATE_ALIVE;
         }
         else{
-            message(1, "nothing to revive at (x, y) = (%i, %i)", .arg[0].i = game.mousex, .arg[1].i = game.mousey);
+            message(1, "nothing to revive at (x, y) = (%i, %i)", .arg[0].i = game.mousex / TILEW, .arg[1].i = game.mousey / TILEW);
             return change_update(level_update, .cmd = CMD_DISPLAY, .dont_clean_message = 1);
         }
         game.update = level_update;
@@ -605,7 +593,6 @@ int game_init(Pixel* draw_canvas_pixels, int draw_canvas_w, int draw_canvas_h){
     game.mousex = 0;
     game.mousey = 0;
 
-    //load_map(map1, map1w, map1h);
     load_map(0);
 
     game.update = level_update;

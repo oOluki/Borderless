@@ -67,8 +67,8 @@ int fire_weapon(int weapon_range, int mapx, int mapy, int direction){
         return 0;
     }
 
-    mapx = mapx / TILEW + dx;
-    mapy = mapy / TILEH + dy;
+    mapx += dx;
+    mapy += dy;
     
     int i = 0;
     Tile tile = get_tile(game.map, mapx, mapy);

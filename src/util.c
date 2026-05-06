@@ -28,9 +28,9 @@ static int feed_uint(char* output, uint64_t u, int max_len){
     for(; (u / 10) / _10n; _10n *= 10);
 
     for(; _10n && len < max_len; _10n /= 10){
-        const int beforedigit = (u / 10) / _10n;
-        const int afterdigit  = u - beforedigit * _10n * 10;
-        const int digit = afterdigit / _10n ;
+        const uint64_t beforedigit = (u / 10) / _10n;
+        const uint64_t afterdigit  = u - beforedigit * _10n * 10;
+        const uint64_t digit = afterdigit / _10n ;
         output[len++] = digit + '0';
     }
 

@@ -1,42 +1,8 @@
-///#include "input.h"
 #include "game.h"
 #include "renderer.h"
 #include "maps.h"
 #include "subsystem.h"
-
 #include "input.h"
-/*
-enum Cmd{
-    CMD_NONE = 0,
-    
-    CMD_QUIT,
-    CMD_UPDATE,
-    CMD_DISPLAY,
-    CMD_DEBUG,
-
-    CMD_BACK,
-    CMD_ENTER,
-    CMD_LCLICK,
-    CMD_CLICK,
-
-    CMD_UP,
-    CMD_RIGHT,
-    CMD_LEFT,
-    CMD_DOWN,
-
-    CMD_CHEAT_RESTART,
-
-    // for external user usage
-    CMD_SPECIAL_SIGNAL,
-
-    // indicates last command in command queue
-    CMD_FINNISHED,
-
-    // for counting purposes
-    CMD_COUNT,
-
-    CMD_ERROR
-};*/
 
 char get_cmd_char(int cmd);
 
@@ -286,6 +252,8 @@ int main(int argc, char** argv){
     }
 
 // ==============================[end of parsing command line arguments]==========================================
+
+    printf("camera = (%i, %i, %i, %i)\n", game.camera.x, game.camera.y, game.camera.w, game.camera.h);
 
     game.update(CMD_DISPLAY);
 

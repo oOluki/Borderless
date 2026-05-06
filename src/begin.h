@@ -76,9 +76,21 @@
 // the bit depth where a tile's data is stored in a tile
 #define TILE_DATA_BITDEPTH 3
 
+// TILE_MARK are bits used to mark tiles during rendering
+
+#define TILE_MARK_COLOR 0x991111AA
+
+#define TILE_MARK_SYM '*'
+
+#define TILE_MARK_BITDEPTH 31
+
+#define TILE_MARK_MASK (1 << TILE_MARK_BITDEPTH)
+
 #define TILE_TYPE(TILE) (((TILE) & TILE_TYPE_MASK) >> TILE_TYPE_BITDEPTH)
 
 #define TILE_DATA(TILE) (((TILE) & TILE_DATA_MASK) >> TILE_DATA_BITDEPTH)
+
+#define TILE_MARK(X) (((X) & TILE_MARK_MASK) >> TILE_MARK_BITDEPTH)
 
 #define MK_TILE(TILE_TYPE, TILE_DATA) ((Tile) ((((TILE_TYPE) << TILE_TYPE_BITDEPTH) & TILE_TYPE_MASK) | (((TILE_DATA) << TILE_DATA_BITDEPTH) & TILE_DATA_MASK)))
 

@@ -58,6 +58,7 @@ int get_char_cmd(int _char){
 const char* get_cmd_str(int CMD){
     switch (CMD)
     {
+    case CMD_NONE:              return "CMD_NONE";
     case CMD_QUIT:              return "CMD_QUIT";
     case CMD_UPDATE:            return "CMD_UPDATE";
     case CMD_DISPLAY:           return "CMD_DISPLAY";
