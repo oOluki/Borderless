@@ -390,7 +390,7 @@ static int handle_keyup(SDL_Keycode key){
     case SDLK_v:
         return (!user_data.continuos)? CMD_RCLICK : CMD_NONE;
     case SDLK_u:
-        return CMD_UPDATE;
+        return (!user_data.continuos)? CMD_UPDATE : CMD_NONE;
     case SDLK_r:
         return CMD_DISPLAY;
     case SDLK_f:
@@ -399,10 +399,6 @@ static int handle_keyup(SDL_Keycode key){
         if(user_data.ctrl){
             printf("\x1B[2J\x1B[H\n");
         }
-        return CMD_NONE;
-    case SDLK_LSHIFT:
-    case SDLK_RSHIFT:
-        user_data.continuos = 0;
         return CMD_NONE;
     case SDLK_RCTRL:
     case SDLK_LCTRL:
@@ -419,6 +415,11 @@ static int handle_keydown(SDL_Keycode key){
     {
     case SDLK_UP:
     case SDLK_w:
+        if(user_data.continuos && !(user_data.movement & USR_UP)){
+            user_data.movement |= USR_UP;
+            user_data.chill = 0;
+            return CMD_UP;
+        }
         user_data.movement |= USR_UP;
         if(user_data.continuos && user_data.chill > 160){
             user_data.chill = 0;
@@ -427,14 +428,19 @@ static int handle_keydown(SDL_Keycode key){
         return CMD_NONE;
     case SDLK_LEFT:
     case SDLK_a:
-        user_data.movement |= USR_LEFT;
-        if(user_data.continuos && user_data.chill > 160){
+        if(user_data.continuos && !(user_data.movement & USR_LEFT)){
+            user_data.movement |= USR_LEFT;
             user_data.chill = 0;
             return CMD_LEFT;
         }
         return CMD_NONE;
     case SDLK_DOWN:
     case SDLK_s:
+        if(user_data.continuos && !(user_data.movement & USR_DOWN)){
+            user_data.movement |= USR_DOWN;
+            user_data.chill = 0;
+            return CMD_DOWN;
+        }
         user_data.movement |= USR_DOWN;
         if(user_data.continuos && user_data.chill > 160){
             user_data.chill = 0;
@@ -443,8 +449,8 @@ static int handle_keydown(SDL_Keycode key){
         return CMD_NONE;
     case SDLK_RIGHT:
     case SDLK_d:
-        user_data.movement |= USR_RIGHT;
-        if(user_data.continuos && user_data.chill > 160){
+        if(user_data.continuos && !(user_data.movement & USR_RIGHT)){
+            user_data.movement |= USR_RIGHT;
             user_data.chill = 0;
             return CMD_RIGHT;
         }
@@ -486,19 +492,13 @@ static int handle_keydown(SDL_Keycode key){
             report();
         }
         return CMD_NONE;
-    case SDLK_e:
-        if(user_data.continuos && user_data.chill > 160){
-            user_data.chill = 0;
-            return CMD_ENTER;
-        }
-        return CMD_NONE;
     case SDLK_RCTRL:
     case SDLK_LCTRL:
         user_data.ctrl = 1;
         return CMD_NONE;
     case SDLK_RSHIFT:
     case SDLK_LSHIFT:
-        user_data.continuos = 1;
+        user_data.continuos = !user_data.continuos;
     default:
         return CMD_NONE;
     }
@@ -562,7 +562,7 @@ int getsdl_cmd(){
         break;;
     }
 
-    if(user_data.continuos && user_data.chill > 320){
+    if(user_data.continuos && user_data.chill > 160){
         user_data.chill = 0;
         return get_cmd_from_movement(user_data.movement);
     }
