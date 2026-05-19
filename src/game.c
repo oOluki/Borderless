@@ -337,6 +337,11 @@ int option_select_update(int cmd){
         return change_update(level_update, .cmd = CMD_DISPLAY);
     }
 
+    if(game.selected_option < 0)
+        game.selected_option = 0;
+    else if(game.selected_option > game.option_count - 1)
+        game.selected_option = game.option_count - 1;
+
     switch(cmd)
     {
     case CMD_NONE:
