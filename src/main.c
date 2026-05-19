@@ -22,7 +22,7 @@ static int cmp_str(const char* str1, const char* str2, int only_compare_untill_f
 
 static inline int record(FILE* output, int cmd, unsigned int _cmd_line_len, int sep){
 
-    static int cmd_line_len = 0;
+    static unsigned int cmd_line_len = 0;
 
     if(!output || cmd == CMD_ERROR || cmd == CMD_NONE)
         return CMD_NONE;

@@ -58,7 +58,7 @@ static inline int load_entity(int type, int x, int y, int state, int orientation
     return 0;
 }
 
-static Tile load_tile_component(int TILE, int map_x, int map_y, int meta_data_size, const char* meta_data){
+static Tile load_tile_component(int TILE, int map_x, int map_y, int meta_data_size, const unsigned char* meta_data){
 
     if(TILE >= TILE_FIRST_ENTITY){
         if(TILE - TILE_FIRST_ENTITY >= meta_data_size){
