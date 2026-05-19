@@ -677,7 +677,7 @@ int game_init(Pixel* draw_canvas_pixels, int draw_canvas_w, int draw_canvas_h){
     game.mousex = 0;
     game.mousey = 0;
 
-    load_map(0);
+    load_map(MAP_0);
 
     game.update = level_update;
 

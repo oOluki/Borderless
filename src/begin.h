@@ -1,8 +1,10 @@
 #ifndef BEGIN_HEADER
 #define BEGIN_HEADER
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <inttypes.h>
 #include <math.h>
 #include <assert.h>
 
@@ -32,6 +34,7 @@
         fprintf(stderr, ""  __VA_ARGS__);\
         fprintf(stderr, "\n");\
         game.active = 0;\
+        exit(EXIT_FAILURE);\
     } while(0)
 #define ERROR(...) REPORT_AND_QUIT(ERROR, __VA_ARGS__)
 #define TODO(...) REPORT_AND_QUIT(TODO, __VA_ARGS__)
@@ -111,7 +114,7 @@ enum Tiles{
     TILE_WALL,
     TILE_SWALL,
 
-    TILE_LAST_TILE = 15,
+    TILE_LAST_TILE = 31,
     TILE_PLAYER_FACE_UP,
     TILE_PLAYER_FACE_RIGHT,
     TILE_PLAYER_FACE_DOWN,
@@ -134,8 +137,6 @@ enum TileTypes{
     TILETYPE_PLAYER,
     // tile is an entity, and this entity's position in the entities array is given by the next 5 bits of the tile
     TILETYPE_ENTITY,
-    // this tile is a part of a button part of id given by the next 5 bits of the tile
-    TILETYPE_BUTTON,
 
     // for counting purposes
     TILETYPE_COUNT,
@@ -222,6 +223,7 @@ enum Items{
 
 enum Maps{
     MAP_0 = 0,
+    MAP_1,
     MAP_TEST,
 
     // for counting purposes
@@ -232,6 +234,8 @@ typedef Color Pixel;
 
 // in game tile
 typedef uint32_t Tile;
+
+#define TILE_FMT PRIu32
 
 // tile used for loading maps
 typedef unsigned char SrcTile;
@@ -275,6 +279,8 @@ typedef struct LoadMap{
     const int               w;
     const int               h;
     const unsigned char*    map;
+    const unsigned char*    meta_data;
+    const int               meta_data_size;
 } LoadMap;
 
 typedef struct Node {

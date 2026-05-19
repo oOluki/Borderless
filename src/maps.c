@@ -13,6 +13,7 @@ const char* get_map_str(int MAP){
     switch (MAP)
     {
     case MAP_0:     return "MAP_0";
+    case MAP_1:     return "MAP_1";
     case MAP_TEST:  return "MAP_TEST";
     
     default:
@@ -57,9 +58,13 @@ static inline int load_entity(int type, int x, int y, int state, int orientation
     return 0;
 }
 
-static Tile load_tile_component(int TILE, int map_x, int map_y, const unsigned char* src){
+static Tile load_tile_component(int TILE, int map_x, int map_y, int meta_data_size, const char* meta_data){
 
     if(TILE >= TILE_FIRST_ENTITY){
+        if(TILE - TILE_FIRST_ENTITY >= meta_data_size){
+            ERROR("could not load entity at (%i, %i), entity meta_data index(%i) out of range(%i)\n", map_x, map_y, TILE - TILE_FIRST_ENTITY, meta_data_size);
+            return MK_TILE(TILETYPE_ERROR, 0);
+        }
 
         if(game.entity_count + 1 >= ARLEN(game.entities)){
             ERROR("could not load entity, entity overflow\n");
@@ -69,9 +74,9 @@ static Tile load_tile_component(int TILE, int map_x, int map_y, const unsigned c
             .id = ENTITY_ENEMY1,
             .x = map_x * TILEW,
             .y = map_y * TILEH,
-            .orientation = src[map_x * map_y + TILE - TILE_FIRST_ENTITY] >> 6,
+            .orientation = meta_data[TILE - TILE_FIRST_ENTITY] >> 6,
             .state  = STATE_ALIVE,
-            .weapon = src[map_x * map_y + TILE - TILE_FIRST_ENTITY] & ((1 << 6) - 1)
+            .weapon = meta_data[TILE - TILE_FIRST_ENTITY] & ((1 << 6) - 1)
         };
         return MK_TILE(TILETYPE_ENTITY, game.entity_count - 1);
     }
@@ -107,12 +112,21 @@ static Tile load_tile_component(int TILE, int map_x, int map_y, const unsigned c
 
 int load_map(int _map){
 
-    if(_map < 0 || _map >= MAP_COUNT)
+    if(_map < 0 || _map >= MAP_COUNT){
         ERROR("map %i overflows maps array", _map);
+        return 1;
+    }
 
     const LoadMap map = maps[_map];
 
-    if(map.w < 0 || map.h < 0) return 1;
+    if(map.w < 0 || map.h < 0){
+        ERROR("map %i %s has invalid dimensions (%i, %i)\n", _map, get_map_str(_map), map.w, map.h);
+        return 1;
+    }
+    if(map.w * map.h >= MAXMAPSIZE){
+        ERROR("map %i %s size(%i) overflows maximum allowed(%i)\n", _map, get_map_str(_map), map.w * map.h, MAXMAPSIZE);
+        return 1;
+    }
 
     // unload map
     if(!map.map){
@@ -134,13 +148,16 @@ int load_map(int _map){
 
     for(int i = 0; i < map.h; i+=1){
         for(int j = 0; j < map.w; j+=1){
-            dest->map[i * dest->w + j] = load_tile_component(map.map[i * map.w + j], j, i, map.map);
+            const Tile tile = load_tile_component(map.map[i * map.w + j], j, i, map.meta_data_size, map.meta_data);
+            if(TILE_TYPE(tile) == TILETYPE_ERROR){
+                ERROR("invalid tile to load(%u) at (x=%i, y=%i)\n", map.map[i * map.w + j], j, i);
+                return 1;
+            }
+            dest->map[i * dest->w + j] = tile;
         }
     }
 
     return 0;
 }
-
-void move_tile(int x, int y, int nx, int ny);
 
 #endif // =====================  END OF FILE MAPS_C ===========================

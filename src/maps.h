@@ -3,7 +3,7 @@
 
 #include "begin.h"
 
-#define MAXMAPSIZE (1024)
+#define MAXMAPSIZE (3072)
 
 const char* get_map_str(int map);
 

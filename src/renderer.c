@@ -300,7 +300,7 @@ static void console_draw_map(){
         for(int j = 0; j < jrange; j+=1){
             const Tile tile = get_tile(game.map, j + joffset, ioffset);
             if(console_draw_tile(canvas, stride, tile)){
-                ERROR("Could not draw tile %16llx", (long long) tile);
+                ERROR("Could not draw tile %" TILE_FMT " at (x=%i, y=%i)\n", tile, j + joffset, ioffset);
                 return ;
             }
             if(TILE_MARK(tile)) // remove mark
@@ -316,7 +316,7 @@ static void console_draw_map(){
         for(int j = 0; j < jrange; j+=1){
             const Tile tile = get_tile(game.map, j + joffset, i + ioffset);
             if(console_draw_tile(canvas, stride, tile)){
-                ERROR("Could not draw tile %16llx", (long long) tile);
+                ERROR("Could not draw tile %" TILE_FMT " at (x=%i, y=%i)", tile, j + joffset, i + ioffset);
                 return ;
             }
             if(TILE_MARK(tile)) // remove mark
@@ -442,7 +442,7 @@ static void graphics_draw_map(){
         for(int j = 0; j < jrange; j+=1){
             const Tile tile = get_tile(game.map, j + joffset, i + ioffset);
             if(graphics_draw_tile(tile, j * TILEW - (game.camera.x % TILEW), i * TILEH - (game.camera.y % TILEH))){
-                ERROR("Could not draw tile %llu", (long long unsigned) tile);
+                ERROR("Could not draw tile %" TILE_FMT " at (x=%i, y=%i)", tile, j + joffset, i + ioffset);
                 return ;
             }
             if(TILE_MARK(tile)){ // remove mark
