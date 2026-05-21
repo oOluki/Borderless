@@ -62,7 +62,7 @@
 
 #define Color uint32_t
 
-#define BACKGROUND_COLOR 0xFF999999
+#define BACKGROUND_COLOR 0xFF666666
 
 #define TILEW 16
 #define TILEH 16

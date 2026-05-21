@@ -12,23 +12,10 @@ static const char* const draw_mode_str[] = {
     [DRAW_MODE_CONSOLE] = "DRAW_MODE_CONSOLE"
 };
 
-static char ascii_map[] = "@%#*+=-:. ";
+static char ascii_map[] = " .-:=+*%X#@";
 
-static int getascii_color_index(Color color){
-    const uint32_t rw = 2126;
-    const uint32_t gw = 7152;
-    const uint32_t bw =  722;
-
-    const uint32_t r = ((color >>  0) & 0xFF);
-    const uint32_t g = ((color >>  8) & 0xFF);
-    const uint32_t b = ((color >> 16) & 0xFF);
-    const uint32_t a = ((color >> 24) & 0xFF);
-
-    if(!a) return 0;
-
-    const uint32_t brightness = (rw * r + gw * g + bw * b) / (rw + gw + bw);
-
-    return (brightness <= 255)? (brightness * (ARLEN(ascii_map) - 1)) / 255 : (ARLEN(ascii_map) - 1);
+static inline int getascii_alpha_index(uint8_t alpha){
+    return (alpha * (ARLEN(ascii_map) - 1)) / 255;
 }
 
 
@@ -56,6 +43,39 @@ static inline void print_mem() {
         goto nomem_report;
 
     if(f) fclose(f);
+}
+
+static void put_color_full(Color color){
+
+    static char _str[] = {
+        '\x1b', '[', '3', '8', ';', '2', ';',
+        'r', 'r', 'r', ';', 'g', 'g', 'g', ';', 'b', 'b', 'b', 'm', 'c', '\0'
+    };
+
+    const uint8_t r = (color >>  0) & 0xFF;
+    const uint8_t g = (color >>  8) & 0xFF;
+    const uint8_t b = (color >> 16) & 0xFF;
+    const uint8_t a = (color >> 24) & 0xFF;
+
+    const char c = '@';//ascii_map[getascii_alpha_index(a)];
+
+    _str[7] = (r / 100) + '0';
+    _str[8] = ((r / 10) & 9) + '0';
+    _str[9] = (r & 9) + '0';
+
+    _str[11] = (g / 100) + '0';
+    _str[12] = ((g / 10) & 9) + '0';
+    _str[13] = (g & 9) + '0';
+
+    _str[15] = (b / 100) + '0';
+    _str[16] = ((b / 10) & 9) + '0';
+    _str[17] = (b & 9) + '0';
+
+    _str[19] = c;
+
+
+    printf("%s\x1b[0m", _str);
+    //printf("\x1b[38;2;255;128;0mOrange\x1b[0m\n");
 }
 
 
@@ -128,8 +148,7 @@ int updateascii_subsystem(){
         putchar('\n');
         for(int i = 0; i < game.camera.h; i+=1){
             for(int j = 0; j < game.camera.w; j+=1){
-                const char ascii_char = ascii_map[getascii_color_index(game.draw_canvas.pixels[i * game.draw_canvas.stride + j])];
-                putchar(ascii_char);
+                put_color_full(game.draw_canvas.pixels[i * game.draw_canvas.stride + j]);
             }
             putchar('\n');
         }

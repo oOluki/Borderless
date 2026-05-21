@@ -3,6 +3,9 @@
 
 #include "begin.h"
 
+void put_color_char(char c, Color foregroung_color, Color background_color);
+
+void print_color_cstr(const char* cstr, Color foregroung_color, Color background_color);
 
 void clear_rect(Surface surface, int _x, int _y, int w, int h, Color color);
 

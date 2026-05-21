@@ -8,7 +8,7 @@
 #include "util.h"
 
 
-static const char console_map_palette[]     = {' ', 'X', '#'};
+static const char console_map_palette[]     = {' ', ' ', '#'};
 static const char console_weapons_sym[WEAPON_COUNT] = {
     [WEAPON_NONE]   = ' ',
     [WEAPON_PISTOL] = 'p'
@@ -66,6 +66,38 @@ static inline uint32_t blend_colors(const uint32_t ct, const uint32_t cb){
     return (ro << 0) | (go << 8) | (bo << 16) | (ab << 24);
 }
 
+static inline const char* get_color_string(Color foregroung_color, Color background_color){
+    static char buff[64];
+
+    const uint8_t fr = (foregroung_color >>  0) & 0xFF;
+    const uint8_t fg = (foregroung_color >>  8) & 0xFF;
+    const uint8_t fb = (foregroung_color >> 16) & 0xFF;
+    const uint8_t fa = (foregroung_color >> 24) & 0xFF;
+
+
+    const uint8_t br = (background_color >>  0) & 0xFF;
+    const uint8_t bg = (background_color >>  8) & 0xFF;
+    const uint8_t bb = (background_color >> 16) & 0xFF;
+    const uint8_t ba = (background_color >> 24) & 0xFF;
+
+    sprintf(
+        buff,
+        "\x1b[38;2;%" PRIu8 ";%" PRIu8 ";%" PRIu8 "m"
+        "\x1b[48;2;%" PRIu8 ";%" PRIu8 ";%" PRIu8 "m",
+        fr, fg, fb,
+        br, bg, bb
+    );
+
+    return buff;
+}
+
+void put_color_char(char c, Color foregroung_color, Color background_color){
+    printf("%s%c\x1b[0m", get_color_string(foregroung_color, background_color), c);
+}
+
+void print_color_cstr(const char* cstr, Color foregroung_color, Color background_color){
+    printf("%s%s\x1b[0m", get_color_string(foregroung_color, background_color), cstr);
+}
 
 void clear_rect(Surface surface, int _x, int _y, int w, int h, Color color){
     const int xrange = (surface.w < _x + w)? surface.w - 1 : _x + w;
@@ -197,73 +229,158 @@ void render_text(Surface surface, int _x, int y, const char* txt, uint32_t color
 
 }
 
+static inline void console_render_char_to_surface(Surface surface, char c, Color foreground_color, Color background_color, int x, int y){
+    surface.pixels[(y * surface.stride + x) * 3 + 0] = c;
+    surface.pixels[(y * surface.stride + x) * 3 + 1] = foreground_color;
+    surface.pixels[(y * surface.stride + x) * 3 + 2] = background_color;
+}
+
+static inline char console_get_char_from_surface(Surface surface, Color* foreground_color, Color* background_color, int x, int y){
+    if(foreground_color) *foreground_color = surface.pixels[(y * surface.stride + x) * 3 + 1];
+    if(background_color) *background_color = surface.pixels[(y * surface.stride + x) * 3 + 2];
+    
+    return (char) surface.pixels[(y * surface.stride + x) * 3 + 0];
+}
+
+static void console_fill_rect(Surface surface, char c, Color foreground_color, Color background_color, Rect rect){
+
+    const int xrange = (surface.w < rect.x + rect.w)? surface.w - 1 : rect.x + rect.w;
+    const int yrange = (surface.h < rect.y + rect.h)? surface.h - 1 : rect.y + rect.h;
+
+    for(int x = (rect.x < 0)? 0 : rect.x; x < xrange; x+=1){
+        for(int y = (rect.y < 0)? 0 : rect.y; y < yrange; y+=1){
+            console_render_char_to_surface(game.draw_canvas, c, foreground_color, background_color, x, y);
+        }
+    }
+
+}
 
 
-
-static int console_draw_tile(char* output, const int output_stride, Tile tile){
+static int console_draw_tile(Tile tile, int x, int y){
     const int tile_data = TILE_DATA(tile);
     const int TILETYPE = TILE_TYPE(tile);
     const int mark = TILE_MARK(tile);
+
+    const int sym_size = 3;
+
+    x *= sym_size;
+    y *= sym_size;
+
     switch (TILETYPE)
     {
     case TILETYPE_NONE:
-        for(int i = 0; i < 3; i+=1)
-            for(int j = 0; j < 3; j+=1)
-                output[i * output_stride + j] = ' ';
-        if(mark)
-            output[1 * output_stride + 1] = TILE_MARK_SYM;
+        if(mark){
+            console_render_char_to_surface(game.draw_canvas, TILE_MARK_SYM, TILE_MARK_COLOR, BACKGROUND_COLOR, x + 1, y + 1);
+        }
         return 0;
     case TILETYPE_TILE:
-        for(int i = 0; i < 3; i+=1)
-            for(int j = 0; j < 3; j+=1)
-                output[i * output_stride + j] = console_map_palette[tile_data];
-        if(mark)
-            output[1 * output_stride + 1] = TILE_MARK_SYM;
+        console_fill_rect(
+            game.draw_canvas, console_map_palette[tile_data], palette[tile_data],
+            (console_map_palette[tile_data] == ' ') ?  palette[tile_data] : BACKGROUND_COLOR,
+            RECT(x, y, 3, 3)
+        );
+        if(mark){
+            console_render_char_to_surface(
+                game.draw_canvas, TILE_MARK_SYM, TILE_MARK_COLOR,
+                (console_map_palette[tile_data] == ' ') ?  palette[tile_data] : BACKGROUND_COLOR,
+                x + 1, y + 1
+            );
+        }
         return 0;
     case TILETYPE_PLAYER:
     case TILETYPE_ENTITY:{
         const Entity* entity;
-        if(TILETYPE == TILETYPE_PLAYER)
+
+        if(TILETYPE == TILETYPE_PLAYER){
             entity = &game.player;
-        else
-            entity = &game.entities[tile_data];
-
-        for(int i = 0; i < 3; i+=1)
-            for(int j = 0; j < 3; j+=1)
-                output[i * output_stride + j] = ' ';
-
-        if(entity->state & STATE_ALIVE){
-            output[0] = (entity->state & STATE_ALERTED)? simple_console_font[FONT_ALERT] : ' ';
         }
         else{
-            output[0] = simple_console_font[FONT_DEAD];
+            entity = &game.entities[tile_data];
         }
-        output[1 * output_stride + 1] = entity_symbol[entity->id];
-        output[2] = console_weapons_sym[entity->weapon];
+
+        if(entity->state & STATE_ALIVE){
+            const char c = (entity->state & STATE_ALERTED)? simple_console_font[FONT_ALERT] : ' ';
+            const Color fcolor = (entity->state & STATE_ALERTED)? 0xFF0000AA : BACKGROUND_COLOR;
+            console_render_char_to_surface(game.draw_canvas, c, fcolor, BACKGROUND_COLOR, x, y);
+        }
+        else{
+            console_render_char_to_surface(game.draw_canvas, simple_console_font[FONT_DEAD], 0xFFDDDDDD, BACKGROUND_COLOR, x, y);
+        }
+        console_render_char_to_surface(
+            game.draw_canvas,
+            entity_symbol[entity->id],
+            enitity_color[entity->id],
+            BACKGROUND_COLOR,
+            x + 1, y + 1
+        );
+
+        console_render_char_to_surface(
+            game.draw_canvas,
+            console_weapons_sym[entity->weapon],
+            0xFFAA1122,
+            BACKGROUND_COLOR,
+            x + 2, y
+        );
+
         const char marksym = mark? TILE_MARK_SYM : ' ';
+        const Color markcolor = mark? TILE_MARK_COLOR : BACKGROUND_COLOR;
+
+        int orientx = 0;
+        int orienty = 0;
+
+        int markx = 0;
+        int marky = 0;
+
+        int font_orient = FONT_UP;
+
         switch (entity->orientation)
         {
         case ORIENT_UP:
-            output[0 * output_stride + 1] = simple_console_font[FONT_UP];
-            output[2 * output_stride + 1] = marksym;
+            font_orient = FONT_UP;
+            orientx = 1;
+            orienty = 0;
+            markx = 1;
+            marky = 2;
             break;
         case ORIENT_RIGHT:
-            output[1 * output_stride + 2] = simple_console_font[FONT_RIGHT];
-            output[1 * output_stride + 0] = marksym;
+            font_orient = FONT_RIGHT;
+            orientx = 2;
+            orienty = 1;
+            markx = 0;
+            marky = 1;
             break;
         case ORIENT_DOWN:
-            output[2 * output_stride + 1] = simple_console_font[FONT_DOWN];
-            output[0 * output_stride + 1] = marksym;
-            break;
-        case ORIENT_LEFT:
-            output[1 * output_stride + 0] = simple_console_font[FONT_LEFT];
-            output[1 * output_stride + 2] = marksym;
+            font_orient = FONT_DOWN;
+            orientx = 1;
+            orienty = 2;
+            markx = 1;
+            marky = 0;
             break;
         default:
-            output[1 * output_stride + 0] = simple_console_font[FONT_INTERROGATION];
-            output[1 * output_stride + 2] = marksym;
+            font_orient = FONT_INTERROGATION;
+        case ORIENT_LEFT:
+            if(entity->orientation == ORIENT_LEFT)
+                font_orient = FONT_LEFT;
+            orientx = 0;
+            orienty = 1;
+            markx = 2;
+            marky = 1;
             break;
         }
+        console_render_char_to_surface(
+            game.draw_canvas,
+            simple_console_font[font_orient],
+            0xFFFFFFFF,
+            BACKGROUND_COLOR,
+            x + orientx, y + orienty
+        );
+        console_render_char_to_surface(
+            game.draw_canvas,
+            marksym,
+            markcolor,
+            BACKGROUND_COLOR,
+            x + markx, y + marky
+        );
     }
         return 0;
     default:
@@ -285,6 +402,21 @@ static void console_draw_map(){
     const int irange    = ilast - ioffset;
     const int jrange    = jlast - joffset;
 
+    console_fill_rect(game.draw_canvas, ' ', 0x0, BACKGROUND_COLOR, RECT(0, 0, jrange * 3, irange * 3));
+
+    /*console_draw_tile(MK_TILE(TILETYPE_PLAYER, 0), game.player.x / TILEW, game.player.y / TILEH);
+
+    for(int i = 0; i < irange * 3; i+=1){
+        for(int j = 0; j < jrange * 3; j+=1){
+            Color foreground;
+            Color background;
+            const char c = console_get_char_from_surface(game.draw_canvas, &foreground, &background, j, i);
+            put_color_char(c, foreground, background);
+        }
+        putchar('\n');
+    }
+    return ;*/
+
     printf("    ");
     if(jrange > 0)
         printf("%3i   ", joffset);
@@ -293,39 +425,45 @@ static void console_draw_map(){
     }
     printf("\n");
 
-    const int stride = 3 * jrange;
-
-    if(irange > 0){
-        char* canvas = (char*) game.draw_canvas.pixels;
-        for(int j = 0; j < jrange; j+=1){
-            const Tile tile = get_tile(game.map, j + joffset, ioffset);
-            if(console_draw_tile(canvas, stride, tile)){
-                ERROR("Could not draw tile %" TILE_FMT " at (x=%i, y=%i)\n", tile, j + joffset, ioffset);
-                return ;
-            }
-            if(TILE_MARK(tile)) // remove mark
-                place_tile(&game.map, tile & ~TILE_MARK_MASK, j + joffset, ioffset);
-            canvas += 3;
-        }
-        printf("     %.*s\n", stride, ((char*) game.draw_canvas.pixels) + 0 * stride);
-        printf("%3i- %.*s\n", ioffset, stride, ((char*) game.draw_canvas.pixels) + 1 * stride);
-        printf("     %.*s\n", stride, ((char*) game.draw_canvas.pixels) + 2 * stride);
-    }
-    for(int i = 1; i < irange; i+=1){
-        char* canvas = (char*) game.draw_canvas.pixels;
+    for(int i = 0; i < irange; i+=1){
         for(int j = 0; j < jrange; j+=1){
             const Tile tile = get_tile(game.map, j + joffset, i + ioffset);
-            if(console_draw_tile(canvas, stride, tile)){
-                ERROR("Could not draw tile %" TILE_FMT " at (x=%i, y=%i)", tile, j + joffset, i + ioffset);
+            if(console_draw_tile(tile, j, i)){
+                ERROR("Could not draw tile %" TILE_FMT " at (x=%i, y=%i)\n", tile, j + joffset, i + ioffset);
                 return ;
             }
             if(TILE_MARK(tile)) // remove mark
                 place_tile(&game.map, tile & ~TILE_MARK_MASK, j + joffset, i + ioffset);
-            canvas += 3;
         }
-        printf("     %.*s\n", stride, ((char*) game.draw_canvas.pixels) + 0 * stride);
-        printf("%3i- %.*s\n", i, stride, ((char*) game.draw_canvas.pixels) + 1 * stride);
-        printf("     %.*s\n", stride, ((char*) game.draw_canvas.pixels) + 2 * stride);
+    }
+    for(int i = 0; i < irange; i+=1){
+
+        printf("     ");
+        for(int j = 0; j < jrange * 3; j+=1){
+            Color foreground;
+            Color background;
+            const char c = console_get_char_from_surface(game.draw_canvas, &foreground, &background, j, i * 3);
+            put_color_char(c, foreground, background);
+        }
+        printf("\n");
+
+        printf("%3i- ", (i == 0)? ioffset : i);
+        for(int j = 0; j < jrange * 3; j+=1){
+            Color foreground;
+            Color background;
+            const char c = console_get_char_from_surface(game.draw_canvas, &foreground, &background, j, i * 3 + 1);
+            put_color_char(c, foreground, background);
+        }
+        printf(" -%i\n", (i == 0)? ioffset : i);
+
+        printf("     ");
+        for(int j = 0; j < jrange * 3; j+=1){
+            Color foreground;
+            Color background;
+            const char c = console_get_char_from_surface(game.draw_canvas, &foreground, &background, j, i * 3 + 2);
+            put_color_char(c, foreground, background);
+        }
+        printf("\n");
     }
 
     printf("    ");
@@ -480,13 +618,16 @@ void draw(){
         printf("\x1B[2J\x1B[H\n");
         console_draw_map();
         if(game.tmp_message_frames){
-            printf("%.*s\n", game.tmp_str_size, game.tmp_str);
+            printf("\x1b[34m%.*s\x1b[0m\n", game.tmp_str_size, game.tmp_str);
             game.tmp_message_frames -= 1;
         }
         if(game.update == option_select_update){
             printf("options:\n");
             for(int i = 0; i < game.option_count; i+=1){
-                printf("%c%i- %s\n", (i == game.selected_option)? '*' : ' ', i, get_option_str(game.options[i]));
+                if(i == game.selected_option)
+                    printf("\x1b[32m*%i- %s\x1b[0m\n", i, get_option_str(game.options[i]));
+                else
+                    printf(" %i- %s\n", i, get_option_str(game.options[i]));
             }
         }
     }
