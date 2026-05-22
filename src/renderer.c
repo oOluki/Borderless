@@ -8,7 +8,15 @@
 #include "util.h"
 
 
-static const char console_map_palette[]     = {' ', ' ', '#'};
+static const char console_map_palette[]     = {
+    ' ',
+#ifndef DONT_SUPPORT_COLOR_CHARACTERS
+    ' ',
+#else
+    'X',
+#endif
+    '#'
+};
 static const char console_weapons_sym[WEAPON_COUNT] = {
     [WEAPON_NONE]   = ' ',
     [WEAPON_PISTOL] = 'p'
@@ -411,19 +419,6 @@ static void console_draw_map(){
     const int jrange    = jlast - joffset;
 
     console_fill_rect(game.draw_canvas, ' ', 0x0, BACKGROUND_COLOR, RECT(0, 0, jrange * 3, irange * 3));
-
-    /*console_draw_tile(MK_TILE(TILETYPE_PLAYER, 0), game.player.x / TILEW, game.player.y / TILEH);
-
-    for(int i = 0; i < irange * 3; i+=1){
-        for(int j = 0; j < jrange * 3; j+=1){
-            Color foreground;
-            Color background;
-            const char c = console_get_char_from_surface(game.draw_canvas, &foreground, &background, j, i);
-            put_color_char(c, foreground, background);
-        }
-        putchar('\n');
-    }
-    return ;*/
 
     printf("    ");
     if(jrange > 0)

@@ -6,23 +6,25 @@ project(Borderless VERSION 0.0.11 LANGUAGES C)
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_CXX_STANDARD 99)
 
-# Conditional settings based on the build type
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    message(STATUS "Configuring for Debug build")
-    add_compile_definitions(-DNDEBUG=1)
-else()
-    message(STATUS "Configuring for Release build")
-endif()
-
-if(CMAKE_DONT_SUPPORT_COLOR_CHARACTERS)
-    message(STATUS "color characters support will be disabled as requested")
-    add_compile_definitions(-DDONT_SUPPORT_COLOR_CHARACTERS=1)
-endif()
-
 # Add executable
 file(GLOB SRC_FILES "src/*.c")
 add_executable(${PROJECT_NAME} ${SRC_FILES})
 add_executable(map_designer map_designer.c)
+
+# Conditional settings based on the build type
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    message(STATUS "Configuring for Debug build")
+    target_compile_definitions(${PROJECT_NAME} PRIVATE NDEBUG=1)
+    target_compile_definitions(map_designer PRIVATE NDEBUG=1)
+else()
+    message(STATUS "Configuring for Release build")
+endif()
+
+
+if(CMAKE_DONT_SUPPORT_COLOR_CHARACTERS)
+    message(STATUS "color characters support will be disabled as requested")
+    target_compile_definitions(${PROJECT_NAME} PRIVATE DONT_SUPPORT_COLOR_CHARACTERS=1)
+endif()
 
 if(NOT WIN32)
   target_link_libraries(${PROJECT_NAME} PRIVATE m)
