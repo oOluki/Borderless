@@ -164,6 +164,9 @@ int getascii_cmd(){
     static int repeat = 0;
     static int cmd = CMD_NONE;
 
+    if(game.active == 0)
+        return CMD_FINNISHED;
+
     if(repeat > 0){
         repeat -= 1;
         return cmd;
