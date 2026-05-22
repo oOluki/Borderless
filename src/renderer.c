@@ -92,11 +92,19 @@ static inline const char* get_color_string(Color foregroung_color, Color backgro
 }
 
 void put_color_char(char c, Color foregroung_color, Color background_color){
+#ifndef DONT_SUPPORT_COLOR_CHARACTERS
     printf("%s%c\x1b[0m", get_color_string(foregroung_color, background_color), c);
+#else
+    printf("%c", c);
+#endif
 }
 
 void print_color_cstr(const char* cstr, Color foregroung_color, Color background_color){
+#ifndef DONT_SUPPORT_COLOR_CHARACTERS
     printf("%s%s\x1b[0m", get_color_string(foregroung_color, background_color), cstr);
+#else
+    printf("%s", cstr);
+#endif
 }
 
 void clear_rect(Surface surface, int _x, int _y, int w, int h, Color color){

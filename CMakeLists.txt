@@ -14,6 +14,10 @@ else()
     message(STATUS "Configuring for Release build")
 endif()
 
+if(CMAKE_DONT_SUPPORT_COLOR_CHARACTERS)
+    message(STATUS "color characters support will be disabled as requested")
+    add_compile_definitions(-DDONT_SUPPORT_COLOR_CHARACTERS=1)
+endif()
 
 # Add executable
 file(GLOB SRC_FILES "src/*.c")
